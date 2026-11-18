@@ -9,8 +9,11 @@ import {
   moveSteps,
   nearestMove,
   readCollapsed,
+  rowMoveSteps,
   type StripItem,
   solveTabMove,
+  sortStripTabs,
+  sortTabsByName,
   splitTabGroup,
   stepWant,
   stripItems,
@@ -480,5 +483,160 @@ describe('collapsed groups', () => {
       })
     expect(() => writeCollapsed(new Set(['a']))).not.toThrow()
     set.mockRestore()
+  })
+})
+
+describe('sortTabsByName', () => {
+  it('orders by the name within the group, numbers by their value, any case', () => {
+    const list = [
+      tab('1', 'review/PR 10'),
+      tab('2', 'review/pr 2'),
+      tab('3', 'review/Alpha'),
+      tab('4', 'review/PR 1'),
+    ]
+    expect(sortTabsByName(list).map((s) => s.id)).toEqual(['3', '4', '2', '1'])
+    // The list itself is left as it was
+    expect(list.map((s) => s.id)).toEqual(['1', '2', '3', '4'])
+  })
+
+  it('keeps the order of tabs of one name', () => {
+    const list = [tab('1', 'a/x'), tab('2', 'a/X'), tab('3', 'a/x')]
+    expect(sortTabsByName(list).map((s) => s.id)).toEqual(['1', '2', '3'])
+  })
+})
+
+describe('stripItems sorted', () => {
+  it("shows each group's tabs by name, the tabs in none where they are", () => {
+    const items = stripItems(
+      [
+        tab('1', 'review/PR 2'),
+        tab('2', 'zeta'),
+        tab('3', 'review/PR 1'),
+        tab('4', 'alpha'),
+      ],
+      () => false,
+      '1',
+      true,
+    )
+    expect(
+      items.map((it) => (it.kind === 'tab' ? it.session.id : it.group.name)),
+    ).toEqual(['review', '3', '1', '2', '4'])
+    const group = items[0] as Extract<StripItem, { kind: 'group' }>
+    expect(group.group.sessions.map((s) => s.id)).toEqual(['3', '1'])
+  })
+})
+
+describe('sortStripTabs', () => {
+  const item = (id: string, name: string, group?: string): StripItem => ({
+    kind: 'tab',
+    key: id,
+    session: tab(id, name),
+    group,
+  })
+  const head = (name: string): StripItem => ({
+    kind: 'group',
+    key: `\0${name}`,
+    group: { name, sessions: [], collapsed: false },
+  })
+  const ids = (items: StripItem[]) =>
+    items.map((it) => (it.kind === 'tab' ? it.session.id : it.group.name))
+
+  it('sorts the tabs of one group that follow each other, the rest in place', () => {
+    const items = [
+      item('1', 'zeta'),
+      head('a'),
+      item('2', 'a/y', 'a'),
+      item('3', 'a/x', 'a'),
+      item('4', 'alpha'),
+      head('b'),
+      item('5', 'b/2', 'b'),
+      item('6', 'b/1', 'b'),
+    ]
+    expect(ids(sortStripTabs(items, (t) => t.group))).toEqual([
+      '1',
+      'a',
+      '3',
+      '2',
+      '4',
+      'b',
+      '6',
+      '5',
+    ])
+  })
+
+  it('sorts two groups side by side each on its own', () => {
+    const items = [
+      item('1', 'a/y', 'a'),
+      item('2', 'a/x', 'a'),
+      item('3', 'b/y', 'b'),
+      item('4', 'b/x', 'b'),
+    ]
+    expect(ids(sortStripTabs(items, (t) => t.group))).toEqual([
+      '2',
+      '1',
+      '4',
+      '3',
+    ])
+  })
+
+  it('takes the group it is told: a bar of one group sorts whole', () => {
+    const items = [item('1', 'a/y'), item('2', 'a/x')]
+    expect(ids(sortStripTabs(items, () => 'a'))).toEqual(['2', '1'])
+    expect(ids(sortStripTabs(items, () => undefined))).toEqual(['1', '2'])
+  })
+})
+
+describe('groupMoveOrder without a group', () => {
+  it('gathers the tabs in none before the tab named', () => {
+    const all = [
+      tab('1', 'Shell'),
+      tab('2', 'review/PR 1'),
+      tab('3', 'Logs'),
+      tab('4', 'coding/api'),
+    ]
+    expect(
+      groupMoveOrder(all, undefined, {
+        kind: 'tab',
+        key: '4',
+        session: all[3],
+      }).map((s) => s.id),
+    ).toEqual(['2', '1', '3', '4'])
+  })
+})
+
+describe('rowMoveSteps', () => {
+  // Rows: review (1, 4), none (2), coding (3)
+  const all = [
+    tab('1', 'review/PR 1'),
+    tab('2', 'Shell'),
+    tab('3', 'coding/api'),
+    tab('4', 'review/PR 2'),
+  ]
+  const rows = tabGroupRows(all)
+  const applied = (steps: { key: string; index: number }[]) => {
+    const cur = [...all]
+    for (const { key, index } of steps) {
+      const at = cur.findIndex((s) => s.id === key)
+      cur.splice(index, 0, ...cur.splice(at, 1))
+    }
+    return cur
+  }
+  const names = (list: Session[]) => tabGroupRows(list).map((r) => r.name)
+
+  it('moves a group to the end, its tabs together', () => {
+    const list = applied(rowMoveSteps(all, rows, 0, 2))
+    expect(list.map((s) => s.id)).toEqual(['2', '3', '1', '4'])
+    expect(names(list)).toEqual([undefined, 'coding', 'review'])
+  })
+
+  it('moves a group before another row', () => {
+    const list = applied(rowMoveSteps(all, rows, 2, 0))
+    expect(list.map((s) => s.id)).toEqual(['3', '1', '2', '4'])
+    expect(names(list)).toEqual(['coding', 'review', undefined])
+  })
+
+  it('moves the tabs in no group as a row too', () => {
+    const list = applied(rowMoveSteps(all, rows, 1, 0))
+    expect(names(list)).toEqual([undefined, 'review', 'coding'])
   })
 })

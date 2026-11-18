@@ -619,6 +619,25 @@ describe('SessionTabs', () => {
         )
       })
 
+      it('puts back a tab dropped within a group whose tabs show by name', async () => {
+        const props = renderGrouped({ sortGroups: true })
+        await drag('PR 1', 250, 350)
+        expect(props.onUpdate).not.toHaveBeenCalled()
+        expect(props.onMove).not.toHaveBeenCalled()
+        expect(slide('PR 1')).toBe('')
+      })
+
+      it('joins such a group where its name puts it, wherever it lands', async () => {
+        const props = renderGrouped({ sortGroups: true })
+        // Shell between PR 1 and PR 2: shown after both, as its tabs are
+        // on the server once it is renamed
+        await drag('Shell', 50, 250)
+        expect(props.onUpdate).toHaveBeenCalledWith('shell', {
+          name: 'review/Shell',
+        })
+        expect(props.onMove).not.toHaveBeenCalled()
+      })
+
       it('only renames a tab already in its place among all of the tabs', async () => {
         const props = renderGrouped()
         // Logs, between PR 1 and PR 2 among all of the tabs already
@@ -1024,6 +1043,83 @@ describe('SessionTabs tab groups', () => {
       fireEvent.keyDown(pr1, { key: 'ArrowRight', altKey: true })
       // After PR 2, the last of the workspace's tabs
       expect(onMove).toHaveBeenCalledWith('pr1', 3)
+    })
+  })
+
+  describe("with a group's tabs by name (sortGroups)", () => {
+    // PR 10 before PR 2 on the server; zeta before alpha, in no group
+    const UNSORTED: Session[] = [
+      { id: 'pr10', name: 'review/PR 10', icon: '', description: '' },
+      { id: 'zeta', name: 'zeta', icon: '', description: '' },
+      { id: 'pr2', name: 'review/PR 2', icon: '', description: '' },
+      { id: 'alpha', name: 'alpha', icon: '', description: '' },
+    ]
+    const sorted = () => ({ ...props(), sessions: UNSORTED, sortGroups: true })
+
+    it("shows a group's tabs by name, the tabs in none where they are", () => {
+      render(<SessionTabs {...sorted()} />)
+      expect(bar()).toEqual(['[review]', 'PR 2', 'PR 10', 'zeta', 'alpha'])
+    })
+
+    it('keeps the order of the server without it, and without tab groups', () => {
+      const { unmount } = render(
+        <SessionTabs {...sorted()} sortGroups={false} />,
+      )
+      expect(bar()).toEqual(['[review]', 'PR 10', 'PR 2', 'zeta', 'alpha'])
+      unmount()
+      render(<SessionTabs {...sorted()} tabGroups={false} />)
+      expect(bar()).toEqual(['review/PR 10', 'zeta', 'review/PR 2', 'alpha'])
+    })
+
+    it('sorts the tabs of the group picked in the row layout, not those in none', () => {
+      const { unmount } = render(
+        <SessionTabs
+          {...sorted()}
+          activeId="pr2"
+          onlyGroup={{ name: 'review' }}
+        />,
+      )
+      expect(bar()).toEqual(['PR 2', 'PR 10'])
+      unmount()
+      render(<SessionTabs {...sorted()} activeId="zeta" onlyGroup={{}} />)
+      expect(bar()).toEqual(['zeta', 'alpha'])
+    })
+
+    it('does not step a tab within its group, in either layout', () => {
+      const onMove = vi.fn()
+      const { unmount } = render(
+        <SessionTabs {...sorted()} activeId="pr2" onMove={onMove} />,
+      )
+      const pr2 = screen.getByRole('tab', { name: /PR 2/ })
+      pr2.focus()
+      fireEvent.keyDown(pr2, { key: 'ArrowRight', altKey: true })
+      expect(onMove).not.toHaveBeenCalled()
+      fireEvent.contextMenu(pr2)
+      expect(
+        screen.getByRole('menuitem', { name: 'Move right' }),
+      ).toBeDisabled()
+      unmount()
+      render(
+        <SessionTabs
+          {...sorted()}
+          activeId="pr2"
+          onMove={onMove}
+          onlyGroup={{ name: 'review' }}
+        />,
+      )
+      const only = screen.getByRole('tab', { name: /PR 2/ })
+      only.focus()
+      fireEvent.keyDown(only, { key: 'ArrowRight', altKey: true })
+      expect(onMove).not.toHaveBeenCalled()
+    })
+
+    it('still steps a tab out of its group at its edge', () => {
+      const p = { ...sorted(), onMove: vi.fn() }
+      render(<SessionTabs {...p} activeId="pr10" />)
+      const pr10 = screen.getByRole('tab', { name: /PR 10/ })
+      pr10.focus()
+      fireEvent.keyDown(pr10, { key: 'ArrowRight', altKey: true })
+      expect(p.onUpdate).toHaveBeenCalledWith('pr10', { name: 'PR 10' })
     })
   })
 

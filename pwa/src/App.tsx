@@ -2326,6 +2326,7 @@ export default function App({
             }
             tabGroups={settings.tabGroups}
             tabGroupsLayout={settings.tabGroupsLayout}
+            tabGroupsSort={settings.tabGroupsSort}
             addTabAsksName={compactSidebar}
             onUpdateTab={readOnly ? undefined : updateSession}
             renameTab={mux.caps.renameTab !== false}

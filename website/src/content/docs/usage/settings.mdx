@@ -174,9 +174,27 @@ Where the groups' names go. Shown while **Tab groups** is on.
 
 With **Row above**, the tabs in no group are under **No group**, a group opens on the tab last shown
 in it, and **+** at the end of the row asks for a new group and its first tab. A tab still moves
-between groups from its menu (**Add to tab group**). Collapsing a group, renaming or ungrouping a
-whole group and dragging a tab into a group belong to the inline layout. As JSON the key is
-`tabGroupsLayout` (`"inline"` or `"row"`). See [Tab groups](/usage/sessions/#tab-groups).
+between groups from its menu (**Add to tab group**). A group moves along the row by a drag (a mouse
+or a pen) or **Alt+←** / **Alt+→** on it, where the backend can move tabs: its tabs move together on
+the server, so every device shows the groups in that order. Collapsing a group, renaming or
+ungrouping a whole group and dragging a tab into a group belong to the inline layout. As JSON the
+key is `tabGroupsLayout` (`"inline"` or `"row"`). See [Tab groups](/usage/sessions/#tab-groups).
+
+## Sort Tabs in a Group by Name (Desktop Only)
+
+Shows the tabs of a tab group in the order of their names, in either layout. Shown while **Tab
+groups** is on.
+
+| Option | Behavior                                                         | Default |
+| ------ | ---------------------------------------------------------------- | ------- |
+| On     | A group's tabs by name, numbers by value (`PR 2` before `PR 10`) |         |
+| Off    | A group's tabs in the order of the server                        | ✓       |
+
+Only what this browser draws changes: no tab moves on the server, so the sidebar and other devices
+keep their order. While it is on, a tab cannot be moved within its group (a drop there puts it
+back), and a tab that joins a group takes the place of its name. Tabs in no group, and the groups
+themselves, keep their order and still move. As JSON the key is `tabGroupsSort` (`true` or
+`false`).
 
 When the tabs no longer fit, the view and panel buttons beside them drop their labels and show
 their icons only (hover one for its name); the labels come back once the tabs have room again.

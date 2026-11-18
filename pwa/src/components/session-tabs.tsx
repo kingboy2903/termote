@@ -11,6 +11,7 @@ import {
 } from 'react'
 import { ENTER_FROM, useNewKeys } from '../hooks/use-new-keys'
 import { LEAVE_TO, usePresenceList } from '../hooks/use-presence-list'
+import { useTabMoveSteps } from '../hooks/use-tab-move-steps'
 import { useWheelScrollX } from '../hooks/use-wheel-scroll-x'
 import { useT } from '../i18n/i18n-context'
 import type { Session } from '../types/session'
@@ -27,6 +28,7 @@ import {
   readCollapsed,
   type StripItem,
   solveTabMove,
+  sortStripTabs,
   splitTabGroup,
   stepWant,
   stripItems,
@@ -88,6 +90,9 @@ interface Props {
   // their own (components/tab-group-row.tsx), and the bar shows the tabs of
   // this group only (name unset: those in none), without a group's name
   onlyGroup?: { name?: string }
+  // The setting tabGroupsSort: a group's tabs show by name, whatever their
+  // order on the server, so a tab cannot be moved within its group
+  sortGroups?: boolean
 }
 
 // Shift+F10 or the context menu key: the menu of the focused tab
@@ -120,8 +125,6 @@ function tabTitle(session: Session): string {
 const DRAG_SLOP = 4
 // How long (ms) a dropped tab waits in its new place for the new order
 const HOLD_MS = 5000
-// How long (ms) a group's move waits for each of its tabs to show moved
-const STEP_WAIT_MS = 5000
 
 // Browser-style tabs in the desktop header row. A tab is a role="tab"
 // button; its close button is a sibling, never nested in it, and Add sits
@@ -160,6 +163,7 @@ export function SessionTabs({
   tabGroups = false,
   workspace,
   onlyGroup,
+  sortGroups = false,
 }: Props) {
   const { t } = useT()
   // The groups this browser keeps collapsed (collapsedKey)
@@ -179,20 +183,39 @@ export function SessionTabs({
   // With onlyGroup, that group's tabs as plain tabs: no name, no folding.
   const inline = tabGroups && !onlyGroup
   const only = tabGroups ? onlyGroup : undefined
+  // A group's tabs by name (sortGroups), in either layout: a bar so sorted
+  // shows no other order of them, so one asked for comes to the sorted one
+  const sorts = tabGroups && sortGroups
+  const tidy = (list: readonly StripItem[]): StripItem[] =>
+    sorts
+      ? sortStripTabs(list, (tab) => (inline ? tab.group : only?.name))
+      : [...list]
   const layOut = (list: readonly Session[]): StripItem[] =>
     inline
       ? stripItems(
           list,
           (g) => collapsed.has(collapsedKey(workspace, g)),
           activeId,
+          sorts,
         )
-      : list
-          .filter((s) => !only || splitTabGroup(s.name).group === only.name)
-          .map((s) => ({ kind: 'tab', key: lastingKey(s), session: s }))
+      : tidy(
+          list
+            .filter((s) => !only || splitTabGroup(s.name).group === only.name)
+            .map((s) => ({ kind: 'tab', key: lastingKey(s), session: s })),
+        )
   // biome-ignore lint/correctness/useExhaustiveDependencies: layOut reads these
   const items = useMemo(
     () => layOut(sessions),
-    [inline, only?.name, !only, sessions, collapsed, workspace, activeId],
+    [
+      inline,
+      only?.name,
+      !only,
+      sorts,
+      sessions,
+      collapsed,
+      workspace,
+      activeId,
+    ],
   )
   // How the server's order is to change for the bar to show want, the tab
   // id renamed to name first: undefined when no single move does it
@@ -203,7 +226,7 @@ export function SessionTabs({
   ): TabMove | null | undefined =>
     solveTabMove(
       sessions.map((s) => (s.id === id ? { ...s, name } : s)),
-      want,
+      tidy(want),
       layOut,
       id,
     )
@@ -259,38 +282,8 @@ export function SessionTabs({
   // A tab renamed into or out of a group by a drag or its keys, its move
   // still to be asked: no other drag starts meanwhile
   const regrouping = useRef(false)
-  // The tabs as last drawn, and what waits for them to change: a group moved
-  // one tab at a time finds each next tab by its lasting key, since a tmux
-  // move renumbers the windows
-  const drawn = useRef(sessions)
-  drawn.current = sessions
-  const redrawn = useRef<(() => void)[]>([])
-  // biome-ignore lint/correctness/useExhaustiveDependencies: new tabs wake the waiters
-  useEffect(() => {
-    for (const wake of redrawn.current.splice(0)) wake()
-  }, [sessions])
-  const runSteps = async (steps: { key: string; index: number }[]) => {
-    regrouping.current = true
-    try {
-      for (const { key, index } of steps) {
-        const tab = drawn.current.find((s) => lastingKey(s) === key)
-        if (!tab) return
-        await onMove!(tab.id, index)
-        // Until the tabs drawn show it there (a refused move: never)
-        const there = () =>
-          drawn.current.findIndex((s) => lastingKey(s) === key) === index
-        const until = Date.now() + STEP_WAIT_MS
-        while (!there() && Date.now() < until)
-          await new Promise<void>((wake) => {
-            redrawn.current.push(wake)
-            setTimeout(wake, 100)
-          })
-        if (!there()) return
-      }
-    } finally {
-      regrouping.current = false
-    }
-  }
+  // A group moved one tab at a time, when no single move does it
+  const runSteps = useTabMoveSteps(sessions, onMove, regrouping)
   // A group moved to place to among the bar's units (stripUnits): one move
   // where one is enough, else its tabs one after the other
   const moveGroup = (name: string, to: number) => {
@@ -535,6 +528,8 @@ export function SessionTabs({
       : tab.session.name
     const move = plan(id, name, want)
     if (move === undefined || (move && !onMove)) return undefined
+    // A step within a group whose tabs show by name: nothing to change
+    if (move === null && !regroup) return undefined
     return { name: regroup ? name : undefined, move }
   }
   const step = (id: string, delta: -1 | 1) => {

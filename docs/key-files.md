@@ -24,6 +24,7 @@ and file families: [`codebase-summary.md`](codebase-summary.md).
 | `pwa/src/components/compact-group-row.tsx`        | Compact sidebar: one workspace per line, its chip, tab count   |
 | `pwa/src/utils/group-avatar.ts`                   | Workspace avatar: first letter, a stable `--tm-avatar-N`       |
 | `pwa/src/components/tab-group-row.tsx`            | Tab groups in a row above the tab bar (tabGroupsLayout)        |
+| `pwa/src/hooks/use-tab-move-steps.ts`             | Several tabs moved in turn (a tab group moved as one)          |
 | `pwa/src/utils/pick-group-tab.ts`                 | Tab a picked workspace opens: last shown here, then server's   |
 | `pwa/src/components/sidebar-agents.tsx`           | Compact sidebar's Agents: by status, opens a pane, resizable   |
 | `pwa/src/hooks/use-sidebar-agents-collapsed.ts`   | Agents section folded or not, kept on the device               |

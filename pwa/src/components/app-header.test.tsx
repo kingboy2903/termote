@@ -405,6 +405,78 @@ describe('AppHeader — tab groups', () => {
       expect(props.onAddTab).toHaveBeenLastCalledWith('specs/auth', undefined)
     })
 
+    it('moves a group along the row by moving its tabs on the server', async () => {
+      const props = headerProps({
+        session: TABS[0],
+        groupSessions: TABS,
+        tabGroupsLayout: 'row',
+        onMoveTab: vi.fn(),
+      })
+      const { rerender } = render(header(props))
+      expect(row(/review/)).toHaveAttribute('data-movable', 'true')
+      row(/review/).focus()
+      fireEvent.keyDown(row(/review/), { key: 'ArrowRight', altKey: true })
+      // Shell before PR 1: review then follows the tabs in no group
+      await vi.waitFor(() =>
+        expect(props.onMoveTab).toHaveBeenCalledWith('2', 0),
+      )
+      rerender(
+        header({
+          ...props,
+          groupSessions: [TABS[1], TABS[0], TABS[2], TABS[3]],
+        }),
+      )
+      expect(rowNames()).toEqual(['', 'review', 'coding'])
+      await act(async () => {})
+      expect(props.onMoveTab).toHaveBeenCalledTimes(1)
+    })
+
+    it('moves no group while a move is under way', async () => {
+      const props = headerProps({
+        session: TABS[0],
+        groupSessions: TABS,
+        tabGroupsLayout: 'row',
+        onMoveTab: vi.fn(() => new Promise(() => {})),
+      })
+      const { rerender } = render(header(props))
+      row(/review/).focus()
+      fireEvent.keyDown(row(/review/), { key: 'ArrowRight', altKey: true })
+      fireEvent.keyDown(row(/review/), { key: 'ArrowRight', altKey: true })
+      expect(props.onMoveTab).toHaveBeenCalledTimes(1)
+      // Nor while a tab's own move is
+      const other = { ...props, onMoveTab: vi.fn(), movingTab: true }
+      rerender(header(other))
+      fireEvent.keyDown(row(/coding/), { key: 'ArrowLeft', altKey: true })
+      expect(other.onMoveTab).not.toHaveBeenCalled()
+    })
+
+    it('keeps the row as it is where tabs cannot be moved', () => {
+      renderHeader({
+        session: TABS[0],
+        groupSessions: TABS,
+        tabGroupsLayout: 'row',
+      })
+      expect(row(/review/)).not.toHaveAttribute('data-movable')
+    })
+
+    it("shows a group's tabs by name and opens it on the first of them (tabGroupsSort)", () => {
+      const unsorted = [TABS[2], TABS[1], TABS[0], TABS[3]]
+      const props = headerProps({
+        session: TABS[3],
+        groupSessions: unsorted,
+        tabGroupsLayout: 'row',
+        tabGroupsSort: true,
+      })
+      const { rerender } = render(header(props))
+      fireEvent.click(row(/review/))
+      expect(props.onSelectTab).toHaveBeenLastCalledWith('1')
+      // The tabs in no group stay as they are
+      fireEvent.click(row(/No group/))
+      expect(props.onSelectTab).toHaveBeenLastCalledWith('2')
+      rerender(header({ ...props, session: TABS[0] }))
+      expect(bar()).toEqual(['PR 1', 'PR 2'])
+    })
+
     it('has no row while no tab is in a group', () => {
       renderHeader({ tabGroupsLayout: 'row' })
       expect(screen.getAllByRole('tablist')).toHaveLength(1)

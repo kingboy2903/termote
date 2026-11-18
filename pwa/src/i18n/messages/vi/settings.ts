@@ -78,6 +78,9 @@ export default {
     'Cùng hàng: tên nhóm nằm trước các tab của nó trên thanh tab. Hàng phía trên: các nhóm nằm ở một hàng riêng phía trên, thanh tab chỉ hiện tab của nhóm đang chọn (máy tính)',
   'settings.tabGroupsLayout.inline': 'Cùng hàng',
   'settings.tabGroupsLayout.row': 'Hàng phía trên',
+  'settings.tabGroupsSort': 'Sắp xếp tab trong nhóm theo tên',
+  'settings.tabGroupsSortDesc':
+    'Hiện các tab của một nhóm tab theo thứ tự tên (PR 2 trước PR 10). Khi đó không thể di chuyển tab trong nhóm của nó (máy tính)',
   'settings.toolbarPosition': 'Vị trí thanh công cụ',
   'settings.toolbarPositionDesc':
     'Thanh bên phải: các nút chuyển kiểu xem, panel, pane, toàn màn hình và bảng lệnh chuyển sang một thanh dọc ở mép phải, header chỉ còn tab (máy tính)',

@@ -300,6 +300,90 @@ for (const { size, viewport, hasTouch, sidebarCollapsed } of WIDE) {
       await expectFits(page)
     })
 
+    test("tabGroupsSort shows a group's tabs by name, in either layout", async ({ page, request }) => {
+      await nameFirstTab(request, 'review/PR 10')
+      await addTab(request, 'zeta')
+      await addTab(request, 'review/PR 2')
+      await addTab(request, 'review/alpha')
+      await addTab(request, 'beta')
+      const server = ['review/PR 10', 'zeta', 'review/PR 2', 'review/alpha', 'beta']
+      await open(page, request, { sidebarCollapsed, tabGroupsSort: true })
+      // The tabs in no group stay where they are
+      await expect.poll(() => shown(page)).toEqual(['[review]', 'alpha', 'PR 2', 'PR 10', 'zeta', 'beta'])
+      // A tab cannot step within its group; at its edge it still leaves it
+      await tab(page, 'PR 2').click({ button: 'right' })
+      await expect(page.getByRole('menuitem', { name: 'Move left' })).toBeDisabled()
+      await expect(page.getByRole('menuitem', { name: 'Move right' })).toBeDisabled()
+      await page.keyboard.press('Escape')
+      // A new tab of the group takes the place of its name
+      await addTab(request, 'review/PR 1')
+      await expect.poll(() => shown(page)).toEqual(['[review]', 'alpha', 'PR 1', 'PR 2', 'PR 10', 'zeta', 'beta'])
+      // Nothing moved on the server
+      expect(await namesOf(request)).toEqual([...server, 'review/PR 1'])
+      await expectFits(page)
+
+      await open(page, request, { sidebarCollapsed, tabGroupsSort: true, tabGroupsLayout: 'row' })
+      await expect.poll(() => shown(page)).toEqual(['alpha', 'PR 1', 'PR 2', 'PR 10'])
+      const rows = page.getByRole('tablist', { name: 'Tab groups' })
+      await rows.getByRole('tab', { name: /^No group/ }).click()
+      await expect.poll(() => shown(page)).toEqual(['zeta', 'beta'])
+      // A group opens on the first of its tabs by name
+      await page.reload()
+      await rows.getByRole('tab', { name: /^review/ }).click()
+      await expect(tab(page, 'alpha')).toHaveAttribute('aria-selected', 'true')
+      await expectFits(page)
+    })
+
+    test('the row layout moves a group along the row, its tabs with it on the server', async ({ page, request }) => {
+      await nameFirstTab(request, 'review/one')
+      await addTab(request, 'coding/api')
+      await addTab(request, 'notes')
+      await addTab(request, 'review/two')
+      await open(page, request, { sidebarCollapsed, tabGroupsLayout: 'row' })
+      const rows = page.getByRole('tablist', { name: 'Tab groups' })
+      const row = (name: string) => rows.getByRole('tab', { name: new RegExp(`^${name}`) })
+      await expect(rows.getByRole('tab')).toHaveText([/^review/, /^coding/, /^No group/])
+      test.skip((await row('coding').getAttribute('data-movable')) === null, 'the server moves no tabs')
+
+      // Alt+Arrow on a group: coding before review, and it keeps the focus
+      await row('coding').focus()
+      await page.keyboard.press('Alt+ArrowLeft')
+      await expect(rows.getByRole('tab')).toHaveText([/^coding/, /^review/, /^No group/])
+      await expect.poll(() => namesOf(request)).toEqual(['coding/api', 'review/one', 'notes', 'review/two'])
+      await expect(row('coding')).toBeFocused()
+      // The tab bar still shows the tabs of the group on screen
+      await expect(row('review')).toHaveAttribute('aria-selected', 'true')
+      await expect.poll(() => shown(page)).toEqual(['one', 'two'])
+
+      // review past the tabs in no group: both of its tabs move, one after
+      // the other
+      await row('review').focus()
+      await page.keyboard.press('Alt+ArrowRight')
+      await expect(rows.getByRole('tab')).toHaveText([/^coding/, /^No group/, /^review/])
+      await expect.poll(() => namesOf(request)).toEqual(['coding/api', 'notes', 'review/one', 'review/two'])
+      await expect.poll(() => shown(page)).toEqual(['one', 'two'])
+
+      if (!hasTouch) {
+        // A drag: review back to the start
+        const from = (await row('review').boundingBox())!
+        const to = (await row('coding').boundingBox())!
+        const y = from.y + from.height / 2
+        await page.mouse.move(from.x + from.width / 2, y)
+        await page.mouse.down()
+        await page.mouse.move(from.x + from.width / 2 - 12, y, { steps: 3 })
+        await page.mouse.move(to.x + 2, y, { steps: 8 })
+        await page.mouse.up()
+        await expect(rows.getByRole('tab')).toHaveText([/^review/, /^coding/, /^No group/])
+        await expect.poll(() => namesOf(request)).toEqual(['review/one', 'review/two', 'coding/api', 'notes'])
+        // The drop picked no other group, and nothing is left slid aside
+        await expect(row('review')).toHaveAttribute('aria-selected', 'true')
+        await expect
+          .poll(() => rows.getByRole('tab').evaluateAll((els) => els.map((el) => (el as HTMLElement).style.translate)))
+          .toEqual(['', '', ''])
+      }
+      await expectFits(page)
+    })
+
     test('the setting off shows every tab by its whole name', async ({ page, request }) => {
       await nameFirstTab(request, 'review/one')
       await addTab(request, 'coding/api')

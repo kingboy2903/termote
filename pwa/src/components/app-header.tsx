@@ -7,9 +7,12 @@ import {
   useRef,
 } from 'react'
 import { useCompactLabels } from '../hooks/use-compact-labels'
+import { useTabMoveSteps } from '../hooks/use-tab-move-steps'
 import { useT } from '../i18n/i18n-context'
 import type { Session } from '../types/session'
 import {
+  rowMoveSteps,
+  sortTabsByName,
   splitTabGroup,
   type TabGroupRow,
   tabGroupRows,
@@ -53,6 +56,8 @@ interface Props {
   // The setting tabGroupsLayout: the groups' names in the tab bar (inline,
   // the default), or in a row above it that picks whose tabs the bar shows
   tabGroupsLayout?: TabGroupsLayout
+  // The setting tabGroupsSort: a group's tabs show by name
+  tabGroupsSort?: boolean
   canRemoveTab: boolean
   onSelectTab: (id: string) => void
   // Unset (view-only role): no Add button
@@ -224,9 +229,20 @@ function DesktopHeader(p: Props) {
   }, [shownKey, session.id])
   const selectRow = (row: TabGroupRow) => {
     const last = lastShown.current.get(rowKey(row.name))
-    p.onSelectTab(
-      row.sessions.find((s) => s.id === last)?.id ?? row.sessions[0].id,
-    )
+    // Else the first tab its bar shows
+    const first =
+      p.tabGroupsSort && row.name !== undefined
+        ? sortTabsByName(row.sessions)[0]
+        : row.sessions[0]
+    p.onSelectTab(row.sessions.find((s) => s.id === last)?.id ?? first.id)
+  }
+  // A group moved along the row: its tabs moved together on the server, one
+  // after the other, so every device shows the groups in that order
+  const rowMoving = useRef(false)
+  const runRowSteps = useTabMoveSteps(p.groupSessions, p.onMoveTab, rowMoving)
+  const moveRow = (from: number, to: number) => {
+    if (rowMoving.current || p.movingTab) return
+    void runRowSteps(rowMoveSteps(p.groupSessions, rows, from, to))
   }
   return (
     // At least 44px, padded below the status bar of an installed iPad app;
@@ -246,6 +262,7 @@ function DesktopHeader(p: Props) {
           active={rowGroup}
           onSelect={selectRow}
           onAdd={p.onAddTab}
+          onMove={p.onMoveTab && moveRow}
         />
       )}
       {/* The expanded sidebar carries the brand; the phone header has no
@@ -276,6 +293,7 @@ function DesktopHeader(p: Props) {
           onSpareChange={labels.onSpareChange}
           tabGroups={p.tabGroups !== false}
           onlyGroup={inRow ? { name: rowGroup } : undefined}
+          sortGroups={p.tabGroupsSort}
           workspace={session.groupId}
         />
       ) : (

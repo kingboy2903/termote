@@ -22,6 +22,7 @@ export const SETTING_LABEL: Record<string, MessageKey> = {
   showSessionTabs: 'settings.tabs',
   tabGroups: 'settings.tabGroups',
   tabGroupsLayout: 'settings.tabGroupsLayout',
+  tabGroupsSort: 'settings.tabGroupsSort',
   showUsageChip: 'settings.usage',
   showCost: 'settings.cost',
   showHostChip: 'settings.hostChip',

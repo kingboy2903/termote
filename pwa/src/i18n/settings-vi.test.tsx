@@ -54,6 +54,7 @@ const SETTINGS: Settings = {
   showSessionTabs: false,
   tabGroups: true,
   tabGroupsLayout: 'inline',
+  tabGroupsSort: false,
   toolbarPosition: 'header',
   pollInterval: 5,
   welcomeSeenVersion: 0,

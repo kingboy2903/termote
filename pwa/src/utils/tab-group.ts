@@ -92,13 +92,57 @@ export type StripItem =
 
 const lastingKey = (s: Session) => s.key ?? s.id
 
+// Names in the order a person lists them: "PR 2" before "PR 10", whatever
+// the case
+const byName = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: 'base',
+})
+
+// A group's tabs by their name in it; tabs of one name keep their order
+export function sortTabsByName(list: readonly Session[]): Session[] {
+  return [...list].sort((a, b) =>
+    byName.compare(splitTabGroup(a.name).label, splitTabGroup(b.name).label),
+  )
+}
+
+// The bar's items with the tabs of one group that follow each other put in
+// the order of their names, as a bar that sorts its groups shows them: what
+// a drop or a step within a group comes to there. groupOf: a tab's group on
+// that bar.
+export function sortStripTabs(
+  items: readonly StripItem[],
+  groupOf: (tab: Extract<StripItem, { kind: 'tab' }>) => string | undefined,
+): StripItem[] {
+  const out: StripItem[] = []
+  let run: Extract<StripItem, { kind: 'tab' }>[] = []
+  let runGroup: string | undefined
+  const flush = () => {
+    const order = sortTabsByName(run.map((it) => it.session))
+    out.push(...order.map((s) => run.find((it) => it.session === s)!))
+    run = []
+  }
+  for (const it of items) {
+    const group = it.kind === 'tab' ? groupOf(it) : undefined
+    if (group !== runGroup || group === undefined) flush()
+    runGroup = group
+    if (it.kind === 'tab' && group !== undefined) run.push(it)
+    else out.push(it)
+  }
+  flush()
+  return out
+}
+
 // The tab bar of a workspace's tabs: each group where its first tab is, its
 // name first and its tabs after it in their order; a tab in no group where
 // it is. A collapsed group shows only the tab on screen among its own.
+// sorted (the setting tabGroupsSort): a group's tabs by name, whatever their
+// order on the server.
 export function stripItems(
   sessions: readonly Session[],
   collapsed: (group: string) => boolean,
   activeId: string,
+  sorted = false,
 ): StripItem[] {
   const members = new Map<string, Session[]>()
   for (const s of sessions) {
@@ -118,7 +162,9 @@ export function stripItems(
     }
     if (seen.has(group)) continue
     seen.add(group)
-    const list = members.get(group)!
+    const list = sorted
+      ? sortTabsByName(members.get(group)!)
+      : members.get(group)!
     const folded = collapsed(group)
     items.push({
       kind: 'group',
@@ -346,10 +392,11 @@ export function stripUnits(items: readonly StripItem[]): StripItem[][] {
 // The server's order with the tabs of group taken out and put back together,
 // in their order, just before before: the first item of the unit that will
 // follow the group on the bar (a group's name: its first tab on the server).
-// None: at the end.
+// None: at the end. group unset: the tabs in none (the row layout's No
+// group).
 export function groupMoveOrder(
   all: readonly Session[],
-  group: string,
+  group: string | undefined,
   before?: StripItem,
 ): Session[] {
   const mine = (s: Session) => splitTabGroup(s.name).group === group
@@ -379,6 +426,30 @@ export function moveSteps(
     steps.push({ key: lastingKey(want), index })
   })
   return steps
+}
+
+// The moves that put the row of groups' line at from at place to (of the
+// rows without it): its tabs together just before the first tab of the row
+// that then follows it, the other tabs as they are, so each row stays where
+// its first tab is.
+export function rowMoveSteps(
+  all: readonly Session[],
+  rows: readonly TabGroupRow[],
+  from: number,
+  to: number,
+): { key: string; index: number }[] {
+  const order = [...rows]
+  const [row] = order.splice(from, 1)
+  order.splice(to, 0, row)
+  const next = order[to + 1]?.sessions[0]
+  return moveSteps(
+    all,
+    groupMoveOrder(
+      all,
+      row.name,
+      next && { kind: 'tab', key: lastingKey(next), session: next },
+    ),
+  )
 }
 
 // The groups this browser shows collapsed, by workspace and name; a

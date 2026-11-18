@@ -3377,7 +3377,7 @@ A tab group gathers tabs of one workspace under a coloured name in the tab bar, 
 * **Move a tab in or out**: drag it after a group’s name or between two of its tabs to add it to that group, or away from its group to take it out. Or use **Add to tab group** in the tab’s menu: another group, **New tab group…** or **Remove from tab group**.
 * **Rename a tab**: **F2** edits its name without the group’s.
 
-Every move in or out renames the tab, so a backend that cannot rename tabs offers none. A group belongs to one workspace and exists while a tab is named with it, so every device shows the same groups, in the same colours; the sidebar, the mobile sessions sheet and the backend’s own tab bar show the whole name (`review/PR 1`). A name that starts with `/`, `~/`, `./` or `../` is a plain name. Settings → Sessions → **Tab groups** turns the groups off: every tab then shows by its whole name. **Tab groups layout** → **Row above** puts the groups on a line above the tab bar instead, which then shows the tabs of the picked group only (see [Settings](/usage/settings/#tab-groups-layout-desktop-only)).
+Every move in or out renames the tab, so a backend that cannot rename tabs offers none. A group belongs to one workspace and exists while a tab is named with it, so every device shows the same groups, in the same colours; the sidebar, the mobile sessions sheet and the backend’s own tab bar show the whole name (`review/PR 1`). A name that starts with `/`, `~/`, `./` or `../` is a plain name. Settings → Sessions → **Tab groups** turns the groups off: every tab then shows by its whole name. **Tab groups layout** → **Row above** puts the groups on a line above the tab bar instead, which then shows the tabs of the picked group only (see [Settings](/usage/settings/#tab-groups-layout-desktop-only)). **Sort tabs in a group by name** shows each group’s tabs in the order of their names (see [Settings](/usage/settings/#sort-tabs-in-a-group-by-name-desktop-only)).
 
 ### What runs in a session
 
@@ -3857,7 +3857,20 @@ Where the groups’ names go. Shown while **Tab groups** is on.
 | Inline    | One tab bar: each group’s coloured name, then its tabs                           | ✓       |
 | Row above | The groups on a line above the tab bar, which shows the tabs of the picked group |         |
 
-With **Row above**, the tabs in no group are under **No group**, a group opens on the tab last shown in it, and **+** at the end of the row asks for a new group and its first tab. A tab still moves between groups from its menu (**Add to tab group**). Collapsing a group, renaming or ungrouping a whole group and dragging a tab into a group belong to the inline layout. As JSON the key is `tabGroupsLayout` (`"inline"` or `"row"`). See [Tab groups](/usage/sessions/#tab-groups).
+With **Row above**, the tabs in no group are under **No group**, a group opens on the tab last shown in it, and **+** at the end of the row asks for a new group and its first tab. A tab still moves between groups from its menu (**Add to tab group**). A group moves along the row by a drag (a mouse or a pen) or **Alt+←** / **Alt+→** on it, where the backend can move tabs: its tabs move together on the server, so every device shows the groups in that order. Collapsing a group, renaming or ungrouping a whole group and dragging a tab into a group belong to the inline layout. As JSON the key is `tabGroupsLayout` (`"inline"` or `"row"`). See [Tab groups](/usage/sessions/#tab-groups).
+
+## Sort Tabs in a Group by Name (Desktop Only)
+
+[Section titled “Sort Tabs in a Group by Name (Desktop Only)”](#sort-tabs-in-a-group-by-name-desktop-only)
+
+Shows the tabs of a tab group in the order of their names, in either layout. Shown while **Tab groups** is on.
+
+| Option | Behavior                                                         | Default |
+| ------ | ---------------------------------------------------------------- | ------- |
+| On     | A group’s tabs by name, numbers by value (`PR 2` before `PR 10`) |         |
+| Off    | A group’s tabs in the order of the server                        | ✓       |
+
+Only what this browser draws changes: no tab moves on the server, so the sidebar and other devices keep their order. While it is on, a tab cannot be moved within its group (a drop there puts it back), and a tab that joins a group takes the place of its name. Tabs in no group, and the groups themselves, keep their order and still move. As JSON the key is `tabGroupsSort` (`true` or `false`).
 
 When the tabs no longer fit, the view and panel buttons beside them drop their labels and show their icons only (hover one for its name); the labels come back once the tabs have room again.
 

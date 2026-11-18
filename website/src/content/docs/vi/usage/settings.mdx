@@ -188,9 +188,28 @@ Tên các nhóm nằm ở đâu. Tùy chọn này hiện khi **Tab groups** đan
 
 Với **Row above**, các tab không thuộc nhóm nào nằm dưới **No group**, một nhóm mở lại tab bạn xem
 gần nhất trong đó, và nút **+** cuối hàng hỏi tên nhóm mới cùng tab đầu tiên của nó. Vẫn chuyển
-được tab giữa các nhóm từ menu của tab (**Add to tab group**). Thu gọn nhóm, đổi tên hay bỏ cả nhóm
-và kéo tab vào nhóm chỉ có ở bố cục inline. Ở dạng JSON, khóa là `tabGroupsLayout` (`"inline"` hoặc
-`"row"`). Xem [Nhóm tab](/vi/usage/sessions/#nhóm-tab).
+được tab giữa các nhóm từ menu của tab (**Add to tab group**). Để đổi thứ tự các nhóm, kéo một
+nhóm dọc theo hàng (bằng chuột hoặc bút) hoặc nhấn **Alt+←** / **Alt+→** trên nhóm đó, khi backend
+cho di chuyển tab: các tab của nhóm cùng được di chuyển trên server, nên thiết bị nào cũng thấy các
+nhóm theo thứ tự đó. Thu gọn nhóm, đổi tên hay bỏ cả nhóm và kéo tab vào nhóm chỉ có ở bố cục
+inline. Ở dạng JSON, khóa là `tabGroupsLayout` (`"inline"` hoặc `"row"`). Xem
+[Nhóm tab](/vi/usage/sessions/#nhóm-tab).
+
+## Sắp xếp tab trong nhóm theo tên (Chỉ desktop)
+
+Hiện các tab của một nhóm tab theo thứ tự tên, ở cả hai bố cục. Tùy chọn này hiện khi **Tab
+groups** đang bật.
+
+| Tùy chọn | Hành vi                                                               | Mặc định |
+| -------- | --------------------------------------------------------------------- | -------- |
+| On       | Tab của nhóm xếp theo tên, số xếp theo giá trị (`PR 2` trước `PR 10`) |          |
+| Off      | Tab của nhóm theo thứ tự trên server                                  | ✓        |
+
+Chỉ cách trình duyệt này hiển thị thay đổi: không tab nào bị di chuyển trên server, nên sidebar và
+các thiết bị khác vẫn giữ thứ tự của chúng. Khi bật, bạn không di chuyển được tab trong nhóm của nó
+(thả tab ở đó thì tab quay về chỗ cũ), và tab mới vào nhóm sẽ nằm đúng chỗ theo tên. Các tab không
+thuộc nhóm nào, và chính các nhóm, vẫn giữ thứ tự và vẫn di chuyển được. Ở dạng JSON, khóa là
+`tabGroupsSort` (`true` hoặc `false`).
 
 Khi tab không còn đủ chỗ, các nút chuyển kiểu xem và mở panel bên cạnh sẽ ẩn chữ, chỉ còn icon (rê
 chuột lên để xem tên); có lại chỗ thì chữ hiện trở lại.

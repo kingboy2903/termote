@@ -72,6 +72,7 @@ const DEFAULT_SETTINGS: Settings = {
   showSessionTabs: false,
   tabGroups: true,
   tabGroupsLayout: 'inline',
+  tabGroupsSort: false,
   toolbarPosition: 'header',
   pollInterval: 5,
   welcomeSeenVersion: 0,
@@ -391,6 +392,19 @@ describe('SettingsModal', () => {
     ).toHaveAttribute('aria-checked', 'true')
     fireEvent.click(within(layout).getByRole('radio', { name: 'Row above' }))
     expect(onUpdateSetting).toHaveBeenCalledWith('tabGroupsLayout', 'row')
+  })
+
+  it('toggles tabGroupsSort, offered only with tab groups', () => {
+    const { onUpdateSetting, unmount } = renderModal()
+    fireEvent.click(
+      screen.getByRole('switch', { name: 'Sort tabs in a group by name' }),
+    )
+    expect(onUpdateSetting).toHaveBeenCalledWith('tabGroupsSort', true)
+    unmount()
+    renderModal({ settings: { ...DEFAULT_SETTINGS, tabGroups: false } })
+    expect(
+      screen.queryByRole('switch', { name: 'Sort tabs in a group by name' }),
+    ).toBeNull()
   })
 
   it('has no tab groups layout while tab groups are off', () => {
