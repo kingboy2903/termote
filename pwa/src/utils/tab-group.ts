@@ -452,6 +452,46 @@ export function rowMoveSteps(
   )
 }
 
+// The tab to show once the tab on screen (closed) is closed, among tabs,
+// its workspace's in the server's order: the one before it in its group,
+// else the one after it; with none left there, the first tab of the group
+// before, else of the group after. Its group: a tab group, or, in the row
+// layout, the tabs in none together; a tab in none in the inline bar, and
+// any tab without tab groups, is a group of its own (so the tab before it
+// in the bar, or the first of the group there). sorted: a group's tabs by
+// name (tabGroupsSort). Undefined: no other tab.
+export function tabAfterClose(
+  tabs: readonly Session[],
+  closed: string,
+  { groups, row, sorted }: { groups: boolean; row: boolean; sorted: boolean },
+): Session | undefined {
+  const unitOf = (s: Session) => {
+    const { group } = splitTabGroup(s.name)
+    if (!groups || (group === undefined && !row)) return `\0${s.id}`
+    return group === undefined ? '\0' : `g${group}`
+  }
+  // The units in the bar's order, each where its first tab is
+  const units = new Map<string, Session[]>()
+  for (const s of tabs) {
+    const key = unitOf(s)
+    const list = units.get(key)
+    if (list) list.push(s)
+    else units.set(key, [s])
+  }
+  const order = [...units].map(([key, list]) => ({
+    key,
+    list: sorted && groups && key.startsWith('g') ? sortTabsByName(list) : list,
+  }))
+  const tab = tabs.find((s) => s.id === closed)
+  if (!tab) return undefined
+  const at = order.findIndex((u) => u.key === unitOf(tab))
+  const mine = order[at].list
+  const i = mine.indexOf(tab)
+  const near = mine[i - 1] ?? mine[i + 1]
+  if (near) return near
+  return (order[at - 1] ?? order[at + 1])?.list[0]
+}
+
 // The groups this browser shows collapsed, by workspace and name; a
 // convenience of this browser only, so nothing is lost without storage
 const COLLAPSED_KEY = 'termote-tab-groups-collapsed'

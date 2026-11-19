@@ -1329,6 +1329,71 @@ describe('App', () => {
     expect(screen.queryByTestId('confirm-dialog')).not.toBeInTheDocument()
   })
 
+  it('shows the neighbour of the tab on screen it closes, picked first', async () => {
+    const base = mockUseLocalSessions()
+    const tabs = [
+      { ...base.sessions[0], id: '1', name: 'review/PR 1', groupId: 'g' },
+      { ...base.sessions[0], id: '2', name: 'review/PR 2', groupId: 'g' },
+      { ...base.sessions[0], id: '3', name: 'Shell', groupId: 'g' },
+    ]
+    const switchSession = vi.fn(async () => undefined)
+    const removeSession = vi.fn(async () => {})
+    mockUseLocalSessions.mockReturnValue({
+      ...base,
+      activeSession: tabs[1],
+      sessions: tabs,
+      switchSession,
+      removeSession,
+    } as any)
+    render(<App />)
+    // The sidebar's remove closes the first tab: not the one on screen
+    fireEvent.click(await screen.findByRole('button', { name: 'SBRemove' }))
+    fireEvent.click(screen.getByRole('button', { name: 'ConfirmYes' }))
+    expect(removeSession).toHaveBeenCalledWith('1')
+    expect(switchSession).not.toHaveBeenCalled()
+    mockUseLocalSessions.mockReturnValue({
+      ...base,
+      activeSession: tabs[0],
+      sessions: tabs,
+      switchSession,
+      removeSession,
+    } as any)
+    removeSession.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: 'SBRemove' }))
+    fireEvent.click(screen.getByRole('button', { name: 'ConfirmYes' }))
+    // PR 1 has none before it in review: PR 2, shown before the close
+    expect(switchSession).toHaveBeenCalledWith('2')
+    await waitFor(() => expect(removeSession).toHaveBeenCalledWith('1'))
+    expect(switchSession.mock.invocationCallOrder[0]).toBeLessThan(
+      removeSession.mock.invocationCallOrder[0],
+    )
+  })
+
+  it('picks the neighbour as the tab groups show it, with them on', async () => {
+    mockUseSettings.mockReturnValue({
+      ...mockUseSettings(),
+      settings: { ...mockUseSettings().settings, tabGroups: true },
+    } as any)
+    const base = mockUseLocalSessions()
+    const tabs = [
+      { ...base.sessions[0], id: '1', name: 'review/PR 1', groupId: 'g' },
+      { ...base.sessions[0], id: '2', name: 'review/PR 2', groupId: 'g' },
+      { ...base.sessions[0], id: '3', name: 'Shell', groupId: 'g' },
+    ]
+    const switchSession = vi.fn(async () => undefined)
+    mockUseLocalSessions.mockReturnValue({
+      ...base,
+      activeSession: tabs[0],
+      sessions: [tabs[0], tabs[2], tabs[1]],
+      switchSession,
+    } as any)
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: 'SBRemove' }))
+    fireEvent.click(screen.getByRole('button', { name: 'ConfirmYes' }))
+    // PR 2, the other tab of its group, not Shell beside it on the server
+    expect(switchSession).toHaveBeenCalledWith('2')
+  })
+
   it('shows the hidden characters of the session it asks to close', async () => {
     const base = mockUseLocalSessions()
     mockUseLocalSessions.mockReturnValue({
