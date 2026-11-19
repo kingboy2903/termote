@@ -40,6 +40,30 @@ export default {
   'shell.tabs.renameField': 'New name for {name}',
   // The form a new tab is named in, under the tab bar
   'shell.tabs.newForm': 'New session',
+  // Tab groups in the tab bar (components/session-tabs.tsx): a group's
+  // coloured name, which folds and unfolds it, and its menu
+  'shell.tabGroups.chip_one': '{name}, tab group of {count} tab',
+  'shell.tabGroups.chip_other': '{name}, tab group of {count} tabs',
+  'shell.tabGroups.menu': 'Tab group {name}',
+  'shell.tabGroups.newTab': 'New tab in this group',
+  'shell.tabGroups.rename': 'Rename tab group',
+  'shell.tabGroups.renameField': 'New name for tab group {name}',
+  'shell.tabGroups.collapse': 'Collapse',
+  'shell.tabGroups.expand': 'Expand',
+  'shell.tabGroups.ungroup': 'Ungroup',
+  // A tab's menu: the groups it can be added to, a new one (named in a
+  // field on the tab) and out of its own
+  'shell.tabGroups.addTo': 'Add to tab group',
+  'shell.tabGroups.new': 'New tab group…',
+  'shell.tabGroups.nameField': 'New tab group for {name}',
+  'shell.tabGroups.remove': 'Remove from tab group',
+  // The new tab form's field for it
+  'shell.tabGroups.field': 'Tab group (optional)',
+  // The row of groups above the tab bar (components/tab-group-row.tsx);
+  // none: the tabs in no group
+  'shell.tabGroups.row': 'Tab groups',
+  'shell.tabGroups.none': 'No group',
+  'shell.tabGroups.add': 'New tab group',
   // The pane strip (components/pane-strip.tsx)
   'shell.panes.close': 'Close pane {name}',
   // The layout view (components/terminal-stack.tsx): one pane of it

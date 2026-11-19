@@ -164,6 +164,53 @@ Bật/tắt hiển thị các tab phiên kiểu trình duyệt trên header ở 
 Tùy chọn này chỉ hiện trên thiết bị desktop. Khi [bố cục sidebar](#bố-cục-sidebar-chỉ-desktop)
 là Compact, thanh tab luôn hiện và công tắc này bị khóa.
 
+## Nhóm tab (Chỉ desktop)
+
+Gom các tab phiên đặt tên bắt đầu bằng tên nhóm (`review/PR 1`) dưới tên có màu của nhóm đó trên
+thanh tab. Xem [Nhóm tab](/vi/usage/sessions/#nhóm-tab).
+
+| Tùy chọn | Hành vi                                                              | Mặc định |
+| -------- | -------------------------------------------------------------------- | -------- |
+| Bật      | Tab của nhóm nằm sau tên có màu của nhóm, hiện không kèm tên nhóm    | ✓        |
+| Tắt      | Mọi tab hiện tên đầy đủ; menu và form tạo tab không còn mục nhóm tab |          |
+
+Tắt đi không đổi tên tab nào: các tab giữ nguyên tên, và các nhóm hiện lại khi bật. Ở dạng JSON,
+khóa là `tabGroups` (`true` hoặc `false`).
+
+## Bố cục nhóm tab (Chỉ desktop)
+
+Tên các nhóm nằm ở đâu. Tùy chọn này hiện khi **Tab groups** đang bật.
+
+| Tùy chọn  | Hành vi                                                                       | Mặc định |
+| --------- | ----------------------------------------------------------------------------- | -------- |
+| Inline    | Một thanh tab: tên có màu của từng nhóm, rồi tới các tab của nhóm             | ✓        |
+| Row above | Các nhóm nằm ở một hàng phía trên thanh tab; thanh tab hiện tab của nhóm chọn |          |
+
+Với **Row above**, các tab không thuộc nhóm nào nằm dưới **No group**, một nhóm mở lại tab bạn xem
+gần nhất trong đó, và nút **+** cuối hàng hỏi tên nhóm mới cùng tab đầu tiên của nó. Vẫn chuyển
+được tab giữa các nhóm từ menu của tab (**Add to tab group**). Để đổi thứ tự các nhóm, kéo một
+nhóm dọc theo hàng (bằng chuột hoặc bút) hoặc nhấn **Alt+←** / **Alt+→** trên nhóm đó, khi backend
+cho di chuyển tab: các tab của nhóm cùng được di chuyển trên server, nên thiết bị nào cũng thấy các
+nhóm theo thứ tự đó. Thu gọn nhóm, đổi tên hay bỏ cả nhóm và kéo tab vào nhóm chỉ có ở bố cục
+inline. Ở dạng JSON, khóa là `tabGroupsLayout` (`"inline"` hoặc `"row"`). Xem
+[Nhóm tab](/vi/usage/sessions/#nhóm-tab).
+
+## Sắp xếp tab trong nhóm theo tên (Chỉ desktop)
+
+Hiện các tab của một nhóm tab theo thứ tự tên, ở cả hai bố cục. Tùy chọn này hiện khi **Tab
+groups** đang bật.
+
+| Tùy chọn | Hành vi                                                               | Mặc định |
+| -------- | --------------------------------------------------------------------- | -------- |
+| On       | Tab của nhóm xếp theo tên, số xếp theo giá trị (`PR 2` trước `PR 10`) |          |
+| Off      | Tab của nhóm theo thứ tự trên server                                  | ✓        |
+
+Chỉ cách trình duyệt này hiển thị thay đổi: không tab nào bị di chuyển trên server, nên sidebar và
+các thiết bị khác vẫn giữ thứ tự của chúng. Khi bật, bạn không di chuyển được tab trong nhóm của nó
+(thả tab ở đó thì tab quay về chỗ cũ), và tab mới vào nhóm sẽ nằm đúng chỗ theo tên. Các tab không
+thuộc nhóm nào, và chính các nhóm, vẫn giữ thứ tự và vẫn di chuyển được. Ở dạng JSON, khóa là
+`tabGroupsSort` (`true` hoặc `false`).
+
 Khi tab không còn đủ chỗ, các nút chuyển kiểu xem và mở panel bên cạnh sẽ ẩn chữ, chỉ còn icon (rê
 chuột lên để xem tên); có lại chỗ thì chữ hiện trở lại.
 

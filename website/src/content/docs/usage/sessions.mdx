@@ -93,6 +93,46 @@ layout** → **Compact** (desktop only; a phone keeps its sessions sheet).
   it focused, a double-click resets it), and click its title to fold it. Both stay on this
   device. The section is not narrowed by the search and is hidden while no agent runs.
 
+### Tab groups
+
+A tab group gathers tabs of one workspace under a coloured name in the tab bar, as in a browser:
+**review**, **coding**, **specs**. Name a tab with the group first and a `/`: `review/PR 1` is the
+tab **PR 1** of the group **review**. On desktop the session tabs show each group's name, then its
+tabs without that part, underlined in the group's colour; the tabs in no group sit between them.
+
+- **Make one**: pick **New tab group…** in a tab's menu (right click) and type its name on the tab
+  (Enter moves the tab, Escape cancels), rename a tab (**F2**) to `review/PR 1`, or fill the **Tab
+  group** field of the new session form.
+- **Collapse and expand**: click the group's name. A collapsed group shows its name with how many
+  tabs it has, in a small counter, and the heaviest agent status among them, and the tab on screen
+  if it is one of them. Each browser keeps which groups it shows collapsed.
+- **Move a group**: drag its name along the tab bar; the group's tabs go with it and the other tabs
+  and groups make room. Or press **Alt+←** and **Alt+→** with its name focused.
+- **The group's menu** (right click on its name, or **Shift+F10** with it focused): **New tab in this
+  group** (**N**), **Rename tab group** (**F2**, renames each of its tabs), **Collapse** or
+  **Expand**, and **Ungroup**, which takes its tabs out and keeps their names without the group's.
+  The arrow keys reach a group's name like a tab.
+- **Move a tab with the keys**: **Alt+←** and **Alt+→** move a tab past the next one in its group;
+  at the group's edge they take it out of the group, and a tab in no group steps past a whole
+  group.
+- **Add a tab**: a new tab from the tab bar joins the group of the tab on screen. The new session
+  form starts with that group; change it, or clear it for a tab in none.
+- **Move a tab in or out**: drag it after a group's name or between two of its tabs to add it to
+  that group, or away from its group to take it out. Or use **Add to tab group** in the tab's menu:
+  another group, **New tab group…** or **Remove from tab group**.
+- **Rename a tab**: **F2** edits its name without the group's.
+
+Every move in or out renames the tab, so a backend that cannot rename tabs offers none. A group
+belongs to one workspace and exists while a tab is named with it, so every device shows the same
+groups, in the same colours; the sidebar, the mobile sessions sheet and the backend's own tab bar
+show the whole name (`review/PR 1`). A name that starts with `/`, `~/`, `./` or `../` is a plain
+name. Settings → Sessions → **Tab groups** turns the groups off: every tab then shows by its whole
+name. **Tab groups layout** → **Row above** puts the groups on a line above the tab bar instead,
+which then shows the tabs of the picked group only (see
+[Settings](/usage/settings/#tab-groups-layout-desktop-only)). **Sort tabs in a group by name** shows
+each group's tabs in the order of their names (see
+[Settings](/usage/settings/#sort-tabs-in-a-group-by-name-desktop-only)).
+
 ### What runs in a session
 
 Each session in the sidebar and in the mobile sheet shows the commands running in its panes under

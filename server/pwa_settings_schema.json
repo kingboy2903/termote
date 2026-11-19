@@ -111,6 +111,28 @@
       "description": "Desktop: the tabs bar above the terminal"
     },
     {
+      "key": "tabGroups",
+      "store": "settings",
+      "type": "boolean",
+      "default": true,
+      "description": "Desktop: tabs named like review/PR 1 gathered in tab groups in the tabs bar"
+    },
+    {
+      "key": "tabGroupsLayout",
+      "store": "settings",
+      "type": "enum",
+      "values": ["inline", "row"],
+      "default": "inline",
+      "description": "Desktop: tab group names in the tabs bar before their tabs, or in a row above it"
+    },
+    {
+      "key": "tabGroupsSort",
+      "store": "settings",
+      "type": "boolean",
+      "default": false,
+      "description": "Desktop: the tabs of a tab group shown by name (PR 2 before PR 10), whatever their order on the server"
+    },
+    {
       "key": "showUsageChip",
       "store": "settings",
       "type": "boolean",

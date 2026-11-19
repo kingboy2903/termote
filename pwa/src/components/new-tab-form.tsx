@@ -1,7 +1,8 @@
-import { type Ref, useEffect, useRef, useState } from 'react'
+import { type Ref, useEffect, useId, useRef, useState } from 'react'
 import { useT } from '../i18n/i18n-context'
 import { DEFAULT_TAB_ICON } from '../types/session'
 import { imeComposing } from '../utils/ime-composing'
+import { joinTabGroup } from '../utils/tab-group'
 import { IconPicker } from './icon-picker'
 import { Button } from './ui/button'
 
@@ -17,14 +18,34 @@ interface Props {
   nameRef?: Ref<HTMLInputElement>
   // Presses on these do not close it (+ toggles it itself)
   toggleSelector?: string
+  // Set: the form asks for a tab group too (optional), offering these; the
+  // name it adds then starts with the one typed ("review/PR 1")
+  groups?: readonly string[]
+  // The tab group the field starts with
+  group?: string
+  // The tab group field takes the focus, not the name (a new group)
+  focusGroup?: boolean
+  // The edge of what it hangs under that it lines up with (default: end)
+  align?: 'start' | 'end'
 }
 
 // A new tab's name and icon, in a panel under the header's tab bar (the
 // sidebar's own form is not on screen there). Enter adds, Escape or a press
 // outside closes; the icon sheet it opens is inside it.
-export function NewTabForm({ onAdd, onClose, nameRef, toggleSelector }: Props) {
+export function NewTabForm({
+  onAdd,
+  onClose,
+  nameRef,
+  toggleSelector,
+  groups,
+  group: firstGroup = '',
+  focusGroup = false,
+  align = 'end',
+}: Props) {
   const { t } = useT()
   const [name, setName] = useState('')
+  const [group, setGroup] = useState(firstGroup)
+  const listId = useId()
   const [icon, setIcon] = useState<string>()
   const ref = useRef<HTMLFormElement>(null)
   const closeRef = useRef(onClose)
@@ -51,7 +72,7 @@ export function NewTabForm({ onAdd, onClose, nameRef, toggleSelector }: Props) {
       onSubmit={(e) => {
         e.preventDefault()
         if (!name.trim()) return
-        onAdd(name.trim(), icon)
+        onAdd(joinTabGroup(group.trim() || undefined, name.trim()), icon)
         onClose()
       }}
       onKeyDown={(e) => {
@@ -66,7 +87,7 @@ export function NewTabForm({ onAdd, onClose, nameRef, toggleSelector }: Props) {
         e.preventDefault()
         onClose()
       }}
-      className="absolute right-0 top-full z-40 mt-1 flex w-72 flex-col gap-2 rounded-panel border border-border bg-surface-raised p-2 shadow-xl ui-native:border-0"
+      className={`absolute top-full z-40 mt-1 flex w-72 flex-col gap-2 rounded-panel border border-border bg-surface-raised p-2 shadow-xl ui-native:border-0 ${align === 'start' ? 'left-0' : 'right-0'}`}
     >
       <div className="flex min-w-0 items-center gap-2">
         <IconPicker
@@ -83,9 +104,28 @@ export function NewTabForm({ onAdd, onClose, nameRef, toggleSelector }: Props) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           className={INPUT_CLASSES}
-          autoFocus
+          autoFocus={!focusGroup}
         />
       </div>
+      {groups && (
+        <>
+          <input
+            type="text"
+            aria-label={t('shell.tabGroups.field')}
+            placeholder={t('shell.tabGroups.field')}
+            list={listId}
+            value={group}
+            onChange={(e) => setGroup(e.target.value)}
+            className={INPUT_CLASSES}
+            autoFocus={focusGroup}
+          />
+          <datalist id={listId}>
+            {groups.map((f) => (
+              <option key={f} value={f} />
+            ))}
+          </datalist>
+        </>
+      )}
       <div className="flex gap-2">
         <Button type="submit" variant="primary" size="sm" className="flex-1">
           {t('shell.sidebar.add')}

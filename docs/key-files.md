@@ -14,14 +14,17 @@ and file families: [`codebase-summary.md`](codebase-summary.md).
 | `pwa/src/utils/tour-steps.ts`                     | Tour steps (phone, desktop), which show, where the bubble goes |
 | `pwa/src/i18n/`                                   | `t()`, `<Trans>`, locales, messages per area (EN, VI)          |
 | `pwa/src/components/language-notice.tsx`          | Once, to a device that picked VI before: the app speaks it now |
-| `pwa/src/components/session-tabs.tsx`             | Header tab bar; a tab's menu: rename (F2), icon, move, close   |
+| `pwa/src/components/session-tabs.tsx`             | Header tab bar, tab groups; menus: rename, icon, group, move   |
 | `pwa/src/components/new-tab-form.tsx`             | A new tab's name and icon, under the header's tab bar          |
+| `pwa/src/utils/tab-group.ts`                      | Tab groups (`review/PR 1`): the bar's order, drops, moves      |
 | `pwa/src/components/tab-icon.tsx`                 | A tab's icon: the picked one, else its agent's logo or default |
 | `pwa/src/components/agent-logo.tsx`               | Coding agents' logos (lobe-icons, MIT) keyed by agent name     |
 | `pwa/src/utils/sidebar-layout.ts`                 | Sidebar layout setting: detailed (tabs listed) or compact      |
 | `pwa/src/hooks/use-sidebar-width.ts`              | Sidebar width dragged from its right edge, saved in settings   |
 | `pwa/src/components/compact-group-row.tsx`        | Compact sidebar: one workspace per line, its chip, tab count   |
 | `pwa/src/utils/group-avatar.ts`                   | Workspace avatar: first letter, a stable `--tm-avatar-N`       |
+| `pwa/src/components/tab-group-row.tsx`            | Tab groups in a row above the tab bar (tabGroupsLayout)        |
+| `pwa/src/hooks/use-tab-move-steps.ts`             | Several tabs moved in turn (a tab group moved as one)          |
 | `pwa/src/utils/pick-group-tab.ts`                 | Tab a picked workspace opens: last shown here, then server's   |
 | `pwa/src/components/sidebar-agents.tsx`           | Compact sidebar's Agents: by status, opens a pane, resizable   |
 | `pwa/src/hooks/use-sidebar-agents-collapsed.ts`   | Agents section folded or not, kept on the device               |
@@ -325,6 +328,7 @@ and file families: [`codebase-summary.md`](codebase-summary.md).
 | `server/files.go`                                 | `/api/mux/panes/{id}/files/*` routes, tree and file contents   |
 | `server/files_root.go`                            | Pane root (git toplevel), safe git runner                      |
 | `server/files_places.go`                          | Places: folders allowed with `--allow-path`, served as roots   |
+| `server/files_mentioned.go`                       | One file the pane's agent named, checked in its transcript     |
 | `server/files_git.go`                             | git status and diff for the Changes view                       |
 | `server/files_git_commit.go`                      | `files/commit`, `files/commit/diff`: HEAD and its file diffs   |
 | `server/files_git_blame.go`                       | `files/blame`: who last changed each line of a file            |

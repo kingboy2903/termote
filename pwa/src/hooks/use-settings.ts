@@ -24,6 +24,11 @@ import {
 } from '../utils/sidebar-layout'
 import { clampSidebarWidth, SIDEBAR_DEFAULT } from '../utils/sidebar-width'
 import {
+  DEFAULT_TAB_GROUPS_LAYOUT,
+  resolveTabGroupsLayout,
+  type TabGroupsLayout,
+} from '../utils/tab-groups-layout'
+import {
   DEFAULT_TOOLBAR_POSITION,
   resolveToolbarPosition,
   type ToolbarPosition,
@@ -207,6 +212,12 @@ export interface Settings {
   hasSeenLocalhostNotice: boolean // dismissed the notice of a page opened through localhost
   pasteSource: PasteSource // paste button source: system clipboard or tmux buffer
   showSessionTabs: boolean // show session tabs bar on desktop
+  // Desktop: tabs named "review/PR 1" gathered in tab groups (utils/tab-group.ts)
+  tabGroups: boolean
+  // Desktop: the groups' names in the tab bar, or in a row above it
+  tabGroupsLayout: TabGroupsLayout
+  // Desktop: a group's tabs show by name, whatever their order on the server
+  tabGroupsSort: boolean
   toolbarPosition: ToolbarPosition // desktop: the controls in the header or on a right bar
   terminalFont: string // font installed on this device, tried before the defaults
   uiStyle: UiStyle // visual style of the app chrome (tokens in index.css)
@@ -255,6 +266,9 @@ export const DEFAULTS: Settings = {
   hasSeenLocalhostNotice: false,
   pasteSource: 'clipboard',
   showSessionTabs: true,
+  tabGroups: true,
+  tabGroupsLayout: DEFAULT_TAB_GROUPS_LAYOUT,
+  tabGroupsSort: false,
   toolbarPosition: DEFAULT_TOOLBAR_POSITION,
   terminalFont: '',
   uiStyle: DEFAULT_UI_STYLE,
@@ -328,6 +342,9 @@ export const SETTING_RESOLVERS: {
   hasSeenLocalhostNotice: (v) => resolveBoolean('hasSeenLocalhostNotice', v),
   pasteSource: resolvePasteSource,
   showSessionTabs: (v) => resolveBoolean('showSessionTabs', v),
+  tabGroups: (v) => resolveBoolean('tabGroups', v),
+  tabGroupsLayout: resolveTabGroupsLayout,
+  tabGroupsSort: (v) => resolveBoolean('tabGroupsSort', v),
   toolbarPosition: resolveToolbarPosition,
   terminalFont: resolveTerminalFont,
   uiStyle: resolveUiStyle,

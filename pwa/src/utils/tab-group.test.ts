@@ -1,0 +1,642 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Session } from '../types/session'
+import {
+  collapsedKey,
+  dropGroup,
+  dropWant,
+  groupMoveOrder,
+  joinTabGroup,
+  moveSteps,
+  nearestMove,
+  readCollapsed,
+  rowMoveSteps,
+  type StripItem,
+  solveTabMove,
+  sortStripTabs,
+  sortTabsByName,
+  splitTabGroup,
+  stepWant,
+  stripItems,
+  stripUnits,
+  tabGroupFill,
+  tabGroupLine,
+  tabGroupNewName,
+  tabGroupRows,
+  validGroupName,
+  writeCollapsed,
+} from './tab-group'
+
+const tab = (id: string, name: string, extra: Partial<Session> = {}) =>
+  ({ id, name, icon: '', description: '', ...extra }) as Session
+
+describe('splitTabGroup', () => {
+  it('splits at the first slash', () => {
+    expect(splitTabGroup('review/PR 1')).toEqual({
+      group: 'review',
+      label: 'PR 1',
+    })
+    expect(splitTabGroup('review/feat/x')).toEqual({
+      group: 'review',
+      label: 'feat/x',
+    })
+  })
+
+  it('trims both parts', () => {
+    expect(splitTabGroup('review / PR 1')).toEqual({
+      group: 'review',
+      label: 'PR 1',
+    })
+  })
+
+  it('leaves a name without a slash alone', () => {
+    expect(splitTabGroup('Shell')).toEqual({ label: 'Shell' })
+  })
+
+  it('leaves a name with an empty part alone', () => {
+    expect(splitTabGroup('/tmp')).toEqual({ label: '/tmp' })
+    expect(splitTabGroup('logs/')).toEqual({ label: 'logs/' })
+    expect(splitTabGroup(' / ')).toEqual({ label: ' / ' })
+  })
+
+  it('leaves a path alone', () => {
+    expect(splitTabGroup('~/notes')).toEqual({ label: '~/notes' })
+    expect(splitTabGroup('./run')).toEqual({ label: './run' })
+    expect(splitTabGroup('../up')).toEqual({ label: '../up' })
+  })
+})
+
+describe('joinTabGroup', () => {
+  it('puts the group before the name', () => {
+    expect(joinTabGroup('review', 'PR 1')).toBe('review/PR 1')
+  })
+
+  it('keeps the name without one', () => {
+    expect(joinTabGroup(undefined, 'PR 1')).toBe('PR 1')
+  })
+})
+
+describe('stripItems', () => {
+  const tabs = [
+    tab('1', 'review/PR 1'),
+    tab('2', 'Shell'),
+    tab('3', 'coding/api'),
+    tab('4', 'review/PR 2', { agentStatus: 'blocked' }),
+  ]
+  const shape = (items: StripItem[]) =>
+    items.map((it) =>
+      it.kind === 'group' ? `[${it.group.name}]` : it.session.id,
+    )
+
+  it("gathers each group's tabs after its name, where its first tab is", () => {
+    const items = stripItems(tabs, () => false, '2')
+    expect(shape(items)).toEqual(['[review]', '1', '4', '2', '[coding]', '3'])
+    const [review] = items
+    expect(review).toMatchObject({
+      kind: 'group',
+      group: { name: 'review', agentStatus: 'blocked', collapsed: false },
+    })
+    expect(items[1]).toMatchObject({ kind: 'tab', group: 'review' })
+    expect(items[3]).toMatchObject({ kind: 'tab' })
+    expect(items[3]).not.toHaveProperty('group')
+  })
+
+  it('keys a tab by its lasting key, and a group apart from any tab', () => {
+    const items = stripItems([tab('1', 'a/x', { key: 'k1' })], () => false, '1')
+    expect(items.map((it) => it.key)).toEqual(['\0a', 'k1'])
+  })
+
+  it('shows only the tab on screen of a collapsed group', () => {
+    const folded = (g: string) => g === 'review'
+    expect(shape(stripItems(tabs, folded, '2'))).toEqual([
+      '[review]',
+      '2',
+      '[coding]',
+      '3',
+    ])
+    expect(shape(stripItems(tabs, folded, '4'))).toEqual([
+      '[review]',
+      '4',
+      '2',
+      '[coding]',
+      '3',
+    ])
+  })
+})
+
+describe('dropGroup', () => {
+  // [review] PR1 PR2 Shell [coding] api
+  const items = stripItems(
+    [
+      tab('1', 'review/PR 1'),
+      tab('2', 'review/PR 2'),
+      tab('3', 'Shell'),
+      tab('4', 'coding/api'),
+    ],
+    () => false,
+    '3',
+  )
+
+  it('joins the group a tab lands inside', () => {
+    // Shell after [review], and between PR 1 and PR 2
+    expect(dropGroup(items, 3, 1)).toBe('review')
+    expect(dropGroup(items, 3, 2)).toBe('review')
+    // after [coding]
+    expect(dropGroup(items, 3, 4)).toBe('coding')
+  })
+
+  it('leaves no group for a tab in none landing outside any', () => {
+    expect(dropGroup(items, 3, 0)).toBeUndefined()
+  })
+
+  it('keeps its own group while one of its tabs is beside it', () => {
+    // PR 1 after PR 2, the end of its group
+    expect(dropGroup(items, 1, 2)).toBe('review')
+  })
+
+  it('leaves its own group away from its tabs', () => {
+    expect(dropGroup(items, 1, 0)).toBeUndefined()
+    // After Shell, before [coding]
+    expect(dropGroup(items, 1, 3)).toBeUndefined()
+    // api to the start
+    expect(dropGroup(items, 5, 0)).toBeUndefined()
+  })
+})
+
+// The bar's tabs as [group]id, a group none of whose tabs shows as [group]
+const bar = (items: StripItem[]) =>
+  items
+    .flatMap((it) =>
+      it.kind === 'tab'
+        ? [`${it.group ? `${it.group}:` : ''}${it.session.id}`]
+        : it.group.collapsed
+          ? [`[${it.group.name}]`]
+          : [],
+    )
+    .join(' ')
+const moved = (all: Session[], m: { id: string; index: number } | null) => {
+  if (!m) return all
+  const list = all.filter((s) => s.id !== m.id)
+  list.splice(m.index, 0, all.find((s) => s.id === m.id)!)
+  return list
+}
+
+describe('stepWant and solveTabMove', () => {
+  const lay =
+    (folded: string[] = [], active = '') =>
+    (list: readonly Session[]) =>
+      stripItems(list, (g) => folded.includes(g), active)
+  // The bar after a step of id, the move found applied (rename first)
+  const step = (
+    all: Session[],
+    id: string,
+    delta: -1 | 1,
+    folded: string[] = [],
+  ) => {
+    const layOut = lay(folded)
+    const items = layOut(all)
+    const at = items.findIndex(
+      (it) => it.kind === 'tab' && it.session.id === id,
+    )
+    const want = stepWant(items, at, delta)
+    if (!want) return undefined
+    const group = (
+      want.find((it) => it.kind === 'tab' && it.session.id === id) as {
+        group?: string
+      }
+    ).group
+    const named = all.map((s) =>
+      s.id === id
+        ? { ...s, name: joinTabGroup(group, splitTabGroup(s.name).label) }
+        : s,
+    )
+    const m = solveTabMove(named, want, layOut, id)
+    return m === undefined ? 'stuck' : bar(layOut(moved(named, m)))
+  }
+
+  it("swaps a group's first tab with the next, its tabs scattered on the server", () => {
+    // The bar: [review] A B Shell
+    const all = [tab('A', 'review/A'), tab('S', 'Shell'), tab('B', 'review/B')]
+    expect(step(all, 'A', 1)).toBe('review:B review:A S')
+    expect(step(all, 'B', -1)).toBe('review:B review:A S')
+  })
+
+  it('keeps another group in its place moving the first tab of one', () => {
+    const all = [
+      tab('x', 'g/x'),
+      tab('p', 'h/p'),
+      tab('y', 'g/y'),
+      tab('q', 'h/q'),
+    ]
+    expect(step(all, 'x', 1)).toBe('g:y g:x h:p h:q')
+  })
+
+  it("takes a tab out of its group at the group's edge", () => {
+    const all = [tab('a', 'a'), tab('x', 'g/x'), tab('y', 'g/y'), tab('b', 'b')]
+    expect(step(all, 'x', -1)).toBe('a x g:y b')
+    expect(step(all, 'y', 1)).toBe('a g:x y b')
+  })
+
+  it('moves a tab in no group past a whole group', () => {
+    const all = [tab('a', 'a'), tab('x', 'g/x'), tab('y', 'g/y'), tab('b', 'b')]
+    expect(step(all, 'b', -1)).toBe('a b g:x g:y')
+    expect(step(all, 'a', 1)).toBe('g:x g:y a b')
+    // Scattered: past the group, not past b too
+    const scattered = [
+      tab('a', 'a'),
+      tab('x', 'g/x'),
+      tab('b', 'b'),
+      tab('y', 'g/y'),
+    ]
+    expect(step(scattered, 'a', 1)).toBe('g:x g:y a b')
+    // A collapsed group is one step too
+    expect(step(all, 'a', 1, ['g'])).toBe('[g] a b')
+  })
+
+  it('swaps two tabs in no group, and stops at either end', () => {
+    const all = [tab('a', 'a'), tab('b', 'b')]
+    expect(step(all, 'a', 1)).toBe('b a')
+    expect(step(all, 'a', -1)).toBeUndefined()
+    expect(step(all, 'b', 1)).toBeUndefined()
+  })
+
+  it('needs no move when the bar already shows it', () => {
+    const all = [tab('a', 'a'), tab('b', 'b')]
+    const items = lay()(all)
+    expect(solveTabMove(all, items, lay(), 'a')).toBeNull()
+  })
+
+  it('says when no single move shows it', () => {
+    const all = [tab('a', 'a'), tab('b', 'b'), tab('c', 'c')]
+    const items = lay()(all)
+    // c b a: two moves at least
+    const want = [items[2], items[1], items[0]]
+    expect(solveTabMove(all, want, lay(), 'a')).toBeUndefined()
+  })
+
+  it("drops a group's first tab out of it without moving the group", () => {
+    // The bar: [review] A B Shell; A dragged to the start
+    const all = [tab('A', 'review/A'), tab('S', 'Shell'), tab('B', 'review/B')]
+    const items = lay()(all)
+    const want = dropWant(items, 1, 0, undefined)
+    const named = all.map((s) => (s.id === 'A' ? { ...s, name: 'A' } : s))
+    const m = solveTabMove(named, want, lay(), 'A')
+    expect(bar(lay()(moved(named, m!)))).toBe('A review:B S')
+  })
+})
+
+describe('nearestMove', () => {
+  const all = [tab('a', 'a'), tab('b', 'b'), tab('c', 'c')]
+  const want = (ids: string[]) =>
+    ids.map(
+      (id) =>
+        ({
+          kind: 'tab',
+          key: id,
+          session: all.find((s) => s.id === id)!,
+        }) as StripItem,
+    )
+
+  it('puts the tab before the one that follows it', () => {
+    expect(nearestMove(all, want(['b', 'a', 'c']), 'a')).toEqual({
+      id: 'a',
+      index: 1,
+    })
+    expect(nearestMove(all, want(['c', 'a', 'b']), 'c')).toEqual({
+      id: 'c',
+      index: 0,
+    })
+  })
+
+  it('puts the last tab after the one before it', () => {
+    expect(nearestMove(all, want(['b', 'c', 'a']), 'a')).toEqual({
+      id: 'a',
+      index: 2,
+    })
+    // A group's name in the bar is no tab
+    const chip = {
+      kind: 'group',
+      key: '\0g',
+      group: { name: 'g' },
+    } as StripItem
+    expect(
+      nearestMove(all, [...want(['a']), chip, ...want(['c'])], 'c'),
+    ).toEqual({
+      id: 'c',
+      index: 1,
+    })
+  })
+
+  it('puts the last tab after one further on the server', () => {
+    expect(nearestMove(all, want(['c', 'a']), 'a')).toEqual({
+      id: 'a',
+      index: 2,
+    })
+  })
+
+  it('moves nothing already in place, or alone', () => {
+    expect(nearestMove(all, want(['a', 'b', 'c']), 'b')).toBeNull()
+    expect(nearestMove([all[0]], want(['a']), 'a')).toBeNull()
+  })
+})
+
+describe('moving a whole group', () => {
+  const all = [
+    tab('x', 'g/x'),
+    tab('a', 'a'),
+    tab('p', 'h/p'),
+    tab('y', 'g/y'),
+    tab('q', 'h/q', { key: 'kq' }),
+  ]
+  // The bar: [g] x y, a, [h] p q
+  const items = stripItems(all, () => false, 'a')
+
+  it('splits the bar into units: a tab in none, or a group with its tabs', () => {
+    expect(
+      stripUnits(items).map((u) =>
+        u
+          .map((it) =>
+            it.kind === 'group' ? `[${it.group.name}]` : it.session.id,
+          )
+          .join(' '),
+      ),
+    ).toEqual(['[g] x y', 'a', '[h] p q'])
+  })
+
+  it("puts a group's tabs together before the unit that follows it", () => {
+    const ids = (list: Session[]) => list.map((s) => s.id).join(' ')
+    const units = stripUnits(items)
+    // g before [h]: before p, h's first tab
+    expect(ids(groupMoveOrder(all, 'g', units[2][0]))).toBe('a x y p q')
+    // h before a
+    expect(ids(groupMoveOrder(all, 'h', units[1][0]))).toBe('x p q a y')
+    // g at the end
+    expect(ids(groupMoveOrder(all, 'g'))).toBe('a p q x y')
+  })
+
+  it('moves one tab at a time, each by its lasting key', () => {
+    const to = groupMoveOrder(all, 'h', stripUnits(items)[0][0])
+    const steps = moveSteps(all, to)
+    expect(steps).toEqual([
+      { key: 'p', index: 0 },
+      { key: 'kq', index: 1 },
+    ])
+    expect(moveSteps(all, all)).toEqual([])
+  })
+})
+
+describe('validGroupName', () => {
+  it('refuses what would not split back into the group', () => {
+    expect(validGroupName('review')).toBe(true)
+    expect(validGroupName('')).toBe(false)
+    expect(validGroupName('a/b')).toBe(false)
+    expect(validGroupName('~')).toBe(false)
+    expect(validGroupName('..')).toBe(false)
+  })
+})
+
+describe('tabGroupRows', () => {
+  it('is empty when no tab is in a group', () => {
+    expect(tabGroupRows([])).toEqual([])
+    expect(tabGroupRows([tab('1', 'Shell'), tab('2', 'Code')])).toEqual([])
+  })
+
+  it('gathers tabs where the first of each is, those in none as one more', () => {
+    const rows = tabGroupRows([
+      tab('1', 'review/PR 1'),
+      tab('2', 'Shell'),
+      tab('3', 'coding/api'),
+      tab('4', 'review/PR 2'),
+    ])
+    expect(rows.map((r) => r.name)).toEqual(['review', undefined, 'coding'])
+    expect(rows.map((r) => r.sessions.map((s) => s.id))).toEqual([
+      ['1', '4'],
+      ['2'],
+      ['3'],
+    ])
+  })
+
+  it('has no line for tabs in none when every tab is in a group', () => {
+    expect(tabGroupRows([tab('1', 'review/PR 1')]).map((r) => r.name)).toEqual([
+      'review',
+    ])
+  })
+
+  it('shows the heaviest agent status of its tabs', () => {
+    const rows = tabGroupRows([
+      tab('1', 'review/PR 1', { agentStatus: 'working' }),
+      tab('2', 'review/PR 2', { agentStatus: 'blocked' }),
+      tab('3', 'coding/api'),
+    ])
+    expect(rows.map((r) => r.agentStatus)).toEqual(['blocked', undefined])
+  })
+})
+
+describe('tabGroupNewName', () => {
+  it('puts a new tab in the group of the tab on screen', () => {
+    expect(tabGroupNewName('review/PR 1', 'PR 2')).toBe('review/PR 2')
+  })
+
+  it('keeps the name when the tab on screen is in none', () => {
+    expect(tabGroupNewName('Shell', 'PR 2')).toBe('PR 2')
+  })
+
+  it('keeps a name that says its own group', () => {
+    expect(tabGroupNewName('review/PR 1', 'coding/api')).toBe('coding/api')
+  })
+})
+
+describe('tab group colours', () => {
+  it('are the same for the same name', () => {
+    expect(tabGroupFill('review')).toMatch(/^bg-avatar-[1-8]$/)
+    expect(tabGroupFill('review')).toBe(tabGroupFill('review'))
+    expect(tabGroupLine('review')).toBe(`after:${tabGroupFill('review')}`)
+  })
+})
+
+describe('collapsed groups', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('are kept by workspace and name', () => {
+    expect(readCollapsed()).toEqual(new Set())
+    writeCollapsed(
+      new Set([collapsedKey('w', 'review'), collapsedKey(undefined, 'x')]),
+    )
+    expect(readCollapsed()).toEqual(new Set(['w\nreview', '\nx']))
+    writeCollapsed(new Set())
+    expect(localStorage.getItem('termote-tab-groups-collapsed')).toBeNull()
+  })
+
+  it('read nothing from what is not a list of names', () => {
+    localStorage.setItem('termote-tab-groups-collapsed', '{"a":1}')
+    expect(readCollapsed()).toEqual(new Set())
+    localStorage.setItem('termote-tab-groups-collapsed', '["a",2]')
+    expect(readCollapsed()).toEqual(new Set(['a']))
+    localStorage.setItem('termote-tab-groups-collapsed', 'not json')
+    expect(readCollapsed()).toEqual(new Set())
+  })
+
+  it('are kept nowhere without storage', () => {
+    const set = vi
+      .spyOn(Storage.prototype, 'setItem')
+      .mockImplementation(() => {
+        throw new Error('full')
+      })
+    expect(() => writeCollapsed(new Set(['a']))).not.toThrow()
+    set.mockRestore()
+  })
+})
+
+describe('sortTabsByName', () => {
+  it('orders by the name within the group, numbers by their value, any case', () => {
+    const list = [
+      tab('1', 'review/PR 10'),
+      tab('2', 'review/pr 2'),
+      tab('3', 'review/Alpha'),
+      tab('4', 'review/PR 1'),
+    ]
+    expect(sortTabsByName(list).map((s) => s.id)).toEqual(['3', '4', '2', '1'])
+    // The list itself is left as it was
+    expect(list.map((s) => s.id)).toEqual(['1', '2', '3', '4'])
+  })
+
+  it('keeps the order of tabs of one name', () => {
+    const list = [tab('1', 'a/x'), tab('2', 'a/X'), tab('3', 'a/x')]
+    expect(sortTabsByName(list).map((s) => s.id)).toEqual(['1', '2', '3'])
+  })
+})
+
+describe('stripItems sorted', () => {
+  it("shows each group's tabs by name, the tabs in none where they are", () => {
+    const items = stripItems(
+      [
+        tab('1', 'review/PR 2'),
+        tab('2', 'zeta'),
+        tab('3', 'review/PR 1'),
+        tab('4', 'alpha'),
+      ],
+      () => false,
+      '1',
+      true,
+    )
+    expect(
+      items.map((it) => (it.kind === 'tab' ? it.session.id : it.group.name)),
+    ).toEqual(['review', '3', '1', '2', '4'])
+    const group = items[0] as Extract<StripItem, { kind: 'group' }>
+    expect(group.group.sessions.map((s) => s.id)).toEqual(['3', '1'])
+  })
+})
+
+describe('sortStripTabs', () => {
+  const item = (id: string, name: string, group?: string): StripItem => ({
+    kind: 'tab',
+    key: id,
+    session: tab(id, name),
+    group,
+  })
+  const head = (name: string): StripItem => ({
+    kind: 'group',
+    key: `\0${name}`,
+    group: { name, sessions: [], collapsed: false },
+  })
+  const ids = (items: StripItem[]) =>
+    items.map((it) => (it.kind === 'tab' ? it.session.id : it.group.name))
+
+  it('sorts the tabs of one group that follow each other, the rest in place', () => {
+    const items = [
+      item('1', 'zeta'),
+      head('a'),
+      item('2', 'a/y', 'a'),
+      item('3', 'a/x', 'a'),
+      item('4', 'alpha'),
+      head('b'),
+      item('5', 'b/2', 'b'),
+      item('6', 'b/1', 'b'),
+    ]
+    expect(ids(sortStripTabs(items, (t) => t.group))).toEqual([
+      '1',
+      'a',
+      '3',
+      '2',
+      '4',
+      'b',
+      '6',
+      '5',
+    ])
+  })
+
+  it('sorts two groups side by side each on its own', () => {
+    const items = [
+      item('1', 'a/y', 'a'),
+      item('2', 'a/x', 'a'),
+      item('3', 'b/y', 'b'),
+      item('4', 'b/x', 'b'),
+    ]
+    expect(ids(sortStripTabs(items, (t) => t.group))).toEqual([
+      '2',
+      '1',
+      '4',
+      '3',
+    ])
+  })
+
+  it('takes the group it is told: a bar of one group sorts whole', () => {
+    const items = [item('1', 'a/y'), item('2', 'a/x')]
+    expect(ids(sortStripTabs(items, () => 'a'))).toEqual(['2', '1'])
+    expect(ids(sortStripTabs(items, () => undefined))).toEqual(['1', '2'])
+  })
+})
+
+describe('groupMoveOrder without a group', () => {
+  it('gathers the tabs in none before the tab named', () => {
+    const all = [
+      tab('1', 'Shell'),
+      tab('2', 'review/PR 1'),
+      tab('3', 'Logs'),
+      tab('4', 'coding/api'),
+    ]
+    expect(
+      groupMoveOrder(all, undefined, {
+        kind: 'tab',
+        key: '4',
+        session: all[3],
+      }).map((s) => s.id),
+    ).toEqual(['2', '1', '3', '4'])
+  })
+})
+
+describe('rowMoveSteps', () => {
+  // Rows: review (1, 4), none (2), coding (3)
+  const all = [
+    tab('1', 'review/PR 1'),
+    tab('2', 'Shell'),
+    tab('3', 'coding/api'),
+    tab('4', 'review/PR 2'),
+  ]
+  const rows = tabGroupRows(all)
+  const applied = (steps: { key: string; index: number }[]) => {
+    const cur = [...all]
+    for (const { key, index } of steps) {
+      const at = cur.findIndex((s) => s.id === key)
+      cur.splice(index, 0, ...cur.splice(at, 1))
+    }
+    return cur
+  }
+  const names = (list: Session[]) => tabGroupRows(list).map((r) => r.name)
+
+  it('moves a group to the end, its tabs together', () => {
+    const list = applied(rowMoveSteps(all, rows, 0, 2))
+    expect(list.map((s) => s.id)).toEqual(['2', '3', '1', '4'])
+    expect(names(list)).toEqual([undefined, 'coding', 'review'])
+  })
+
+  it('moves a group before another row', () => {
+    const list = applied(rowMoveSteps(all, rows, 2, 0))
+    expect(list.map((s) => s.id)).toEqual(['3', '1', '2', '4'])
+    expect(names(list)).toEqual(['coding', 'review', undefined])
+  })
+
+  it('moves the tabs in no group as a row too', () => {
+    const list = applied(rowMoveSteps(all, rows, 1, 0))
+    expect(names(list)).toEqual([undefined, 'review', 'coding'])
+  })
+})

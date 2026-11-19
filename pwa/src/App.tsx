@@ -95,6 +95,7 @@ import {
   followInFiles,
   followPathInFiles,
   openInFiles,
+  openOutsideInFiles,
   requestFilesFocus,
   usePlaces,
 } from './hooks/use-files'
@@ -180,6 +181,7 @@ import {
 } from './utils/settings-registry'
 import { formatChord } from './utils/shortcuts'
 import { spareAllowed } from './utils/spare-stream-token'
+import { tabGroupNewName } from './utils/tab-group'
 import {
   attachImageToTerminal,
   blurTerminal,
@@ -1009,15 +1011,25 @@ export default function App({
   }, [resumedTab, sessions, openTab])
   // A path in an old transcript, opened in Files of the pane on screen
   const historyOpenFile = useCallback(
-    async (paneId: string, path: string, line?: number) => {
+    async (
+      paneId: string,
+      path: string,
+      line: number | undefined,
+      session: { agent: string; id: string },
+    ) => {
       const result = await followPathInFiles(paneId, path, line)
-      if (result === 'opened') {
+      // Outside the folder: opened read only when that session named it
+      const notice =
+        result === 'outside'
+          ? await openOutsideInFiles(paneId, path, { readOnly, session })
+          : FOLLOW_NOTICES[result]
+      if (notice) notify(t(notice))
+      else if (result === 'opened' || result === 'outside') {
         setHistoryTarget(null)
         showView(FILES_VIEW_ID)
-      } else if (result === 'outside') notify(t('chat.view.outside'))
-      else if (FOLLOW_NOTICES[result]) notify(t(FOLLOW_NOTICES[result]))
+      }
     },
-    [showView, notify, t],
+    [showView, notify, t, readOnly],
   )
   // A file an old session changed: its diff in Changes while git lists it,
   // else the file in Files, of the pane on screen
@@ -2300,8 +2312,21 @@ export default function App({
             onAddTab={
               readOnly || focus
                 ? undefined
-                : (name = 'New', icon?: string) => addTab(name, icon)
+                : (name?: string, icon?: string) =>
+                    // Without a name: into the tab group of the tab on
+                    // screen (the form says the group itself), where tabs
+                    // are grouped
+                    addTab(
+                      name ??
+                        (settings.tabGroups
+                          ? tabGroupNewName(activeSession.name, 'New')
+                          : 'New'),
+                      icon,
+                    )
             }
+            tabGroups={settings.tabGroups}
+            tabGroupsLayout={settings.tabGroupsLayout}
+            tabGroupsSort={settings.tabGroupsSort}
             addTabAsksName={compactSidebar}
             onUpdateTab={readOnly ? undefined : updateSession}
             renameTab={mux.caps.renameTab !== false}

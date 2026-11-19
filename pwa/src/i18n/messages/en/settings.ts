@@ -69,6 +69,17 @@ export default {
   'settings.tabsDesc': 'Display tab bar for quick session switching (desktop)',
   'settings.tabsForcedByCompact':
     'Always shown with the compact sidebar, which keeps the tabs there',
+  'settings.tabGroups': 'Tab groups',
+  'settings.tabGroupsDesc':
+    'Group tabs named like review/PR 1 under a coloured name in the tab bar (desktop)',
+  'settings.tabGroupsLayout': 'Tab groups layout',
+  'settings.tabGroupsLayoutDesc':
+    'Inline shows each group before its tabs in the tab bar. Row above lists the groups on a line above it and shows the tabs of the picked one (desktop)',
+  'settings.tabGroupsLayout.inline': 'Inline',
+  'settings.tabGroupsLayout.row': 'Row above',
+  'settings.tabGroupsSort': 'Sort tabs in a group by name',
+  'settings.tabGroupsSortDesc':
+    'Show the tabs of a tab group in the order of their names (PR 2 before PR 10). A tab then cannot be moved within its group (desktop)',
   'settings.toolbarPosition': 'Toolbar position',
   'settings.toolbarPositionDesc':
     'Right bar moves the view, panel and pane buttons, fullscreen and the command palette to a bar down the right edge, leaving the header to the tabs (desktop)',
