@@ -51,6 +51,7 @@ export default {
   'shell.tabGroups.collapse': 'Collapse',
   'shell.tabGroups.expand': 'Expand',
   'shell.tabGroups.ungroup': 'Ungroup',
+  'shell.tabGroups.sort': 'Sort tabs by name',
   // A tab's menu: the groups it can be added to, a new one (named in a
   // field on the tab) and out of its own
   'shell.tabGroups.addTo': 'Add to tab group',

@@ -12,6 +12,7 @@ import {
   rowMoveSteps,
   type StripItem,
   solveTabMove,
+  sortGroupOrder,
   sortStripTabs,
   sortTabsByName,
   splitTabGroup,
@@ -602,6 +603,34 @@ describe('groupMoveOrder without a group', () => {
         session: all[3],
       }).map((s) => s.id),
     ).toEqual(['2', '1', '3', '4'])
+  })
+})
+
+describe('sortGroupOrder', () => {
+  const all = [
+    tab('1', 'Shell'),
+    tab('2', 'review/PR 10'),
+    tab('3', 'coding/api'),
+    tab('4', 'review/PR 2'),
+    tab('5', 'review/check'),
+  ]
+  it("sorts a group's tabs by name, together where its first tab is", () => {
+    expect(sortGroupOrder(all, 'review').map((s) => s.id)).toEqual([
+      '1',
+      '5',
+      '4',
+      '2',
+      '3',
+    ])
+  })
+  it('keeps the order without such a group', () => {
+    expect(sortGroupOrder(all, 'docs').map((s) => s.id)).toEqual([
+      '1',
+      '2',
+      '3',
+      '4',
+      '5',
+    ])
   })
 })
 

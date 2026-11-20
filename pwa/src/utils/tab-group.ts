@@ -411,6 +411,20 @@ export function groupMoveOrder(
   return rest
 }
 
+// The server's order with the tabs of group sorted by name and together,
+// where its first tab is: what the group's Sort tabs by name asks for
+export function sortGroupOrder(
+  all: readonly Session[],
+  group: string,
+): Session[] {
+  const mine = (s: Session) => splitTabGroup(s.name).group === group
+  const at = all.findIndex(mine)
+  if (at === -1) return [...all]
+  const rest = all.filter((s) => !mine(s))
+  rest.splice(at, 0, ...sortTabsByName(all.filter(mine)))
+  return rest
+}
+
 // The moves, one tab at a time, each by the tab's lasting key and its place
 // once moved, that turn the order from into the order to
 export function moveSteps(
