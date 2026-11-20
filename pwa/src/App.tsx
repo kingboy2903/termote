@@ -181,7 +181,7 @@ import {
 } from './utils/settings-registry'
 import { formatChord } from './utils/shortcuts'
 import { spareAllowed } from './utils/spare-stream-token'
-import { tabGroupNewName } from './utils/tab-group'
+import { tabAfterClose, tabGroupNewName } from './utils/tab-group'
 import {
   attachImageToTerminal,
   blurTerminal,
@@ -530,11 +530,45 @@ export default function App({
   const cancelRemove = useCallback(() => setPendingRemoveKey(null), [])
   const confirmRemove = useCallback(() => {
     // Only reachable from the open dialog, which needs a pending tab
-    removeSession(pendingRemove!.id).catch(() =>
-      showToast(t('shell.tabChanged'), 'warning'),
-    )
+    const closing = pendingRemove!
+    const remove = () =>
+      removeSession(closing.id).catch(() =>
+        showToast(t('shell.tabChanged'), 'warning'),
+      )
     setPendingRemoveKey(null)
-  }, [pendingRemove, removeSession, showToast, t])
+    // The tab on screen gives way to its neighbour as the tab bar shows it
+    // (utils/tab-group.ts tabAfterClose), picked before the close: else the
+    // backend's pick, or the workspace's first tab, would show
+    const next =
+      closing.id === activeSession?.id
+        ? tabAfterClose(
+            sessions.filter((s) => s.groupId === closing.groupId),
+            closing.id,
+            {
+              groups: settings.tabGroups && !isMobile,
+              row: settings.tabGroupsLayout === 'row',
+              sorted: settings.tabGroupsSort,
+            },
+          )
+        : undefined
+    if (!next) {
+      void remove()
+      return
+    }
+    void Promise.resolve(switchSession(next.id)).then(remove, remove)
+  }, [
+    pendingRemove,
+    activeSession?.id,
+    sessions,
+    settings.tabGroups,
+    settings.tabGroupsLayout,
+    settings.tabGroupsSort,
+    isMobile,
+    switchSession,
+    removeSession,
+    showToast,
+    t,
+  ])
   // Closing a pane ends what runs in it too, so it asks the same way.
   const [pendingPaneId, setPendingPaneId] = useState<string | null>(null)
   // The pane layout actions, on the pane shown: offered where the backend

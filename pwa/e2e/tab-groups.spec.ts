@@ -384,6 +384,34 @@ for (const { size, viewport, hasTouch, sidebarCollapsed } of WIDE) {
       await expectFits(page)
     })
 
+    test('closing the tab on screen shows its neighbour, then the group before', async ({ page, request }) => {
+      await nameFirstTab(request, 'notes')
+      await addTab(request, 'review/one')
+      await addTab(request, 'review/two')
+      await addTab(request, 'coding/api')
+      await open(page, request, { sidebarCollapsed, tabGroupsLayout: 'row' })
+      const rows = page.getByRole('tablist', { name: 'Tab groups' })
+      const row = (name: string) => rows.getByRole('tab', { name: new RegExp(`^${name}`) })
+      const close = async (name: string) => {
+        await tabBar(page).getByRole('button', { name: `Close review/${name}` }).click()
+        const dialog = page.getByRole('dialog', { name: 'Close session?' })
+        await dialog.getByRole('button', { name: 'Close session' }).click()
+        await expect.poll(() => namesOf(request)).not.toContain(`review/${name}`)
+      }
+      await row('review').click()
+      await tab(page, 'two').click()
+      await expect(tab(page, 'two')).toHaveAttribute('aria-selected', 'true')
+      // The tab before it in its group
+      await close('two')
+      await expect(tab(page, 'one')).toHaveAttribute('aria-selected', 'true')
+      // Its group now empty: the first tab of the group before (No group)
+      await close('one')
+      await expect(row('No group')).toHaveAttribute('aria-selected', 'true')
+      await expect(tab(page, 'notes')).toHaveAttribute('aria-selected', 'true')
+      await expect(row('review')).toHaveCount(0)
+      expect(await namesOf(request)).toEqual(['notes', 'coding/api'])
+    })
+
     test('the setting off shows every tab by its whole name', async ({ page, request }) => {
       await nameFirstTab(request, 'review/one')
       await addTab(request, 'coding/api')

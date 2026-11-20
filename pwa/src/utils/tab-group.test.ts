@@ -18,6 +18,7 @@ import {
   stepWant,
   stripItems,
   stripUnits,
+  tabAfterClose,
   tabGroupFill,
   tabGroupLine,
   tabGroupNewName,
@@ -638,5 +639,70 @@ describe('rowMoveSteps', () => {
   it('moves the tabs in no group as a row too', () => {
     const list = applied(rowMoveSteps(all, rows, 1, 0))
     expect(names(list)).toEqual([undefined, 'review', 'coding'])
+  })
+})
+
+describe('tabAfterClose', () => {
+  // review: PR 2, PR 1 (in the server's order), then a tab in none, coding
+  const all = [
+    tab('notes', 'notes'),
+    tab('pr2', 'review/PR 2'),
+    tab('shell', 'Shell'),
+    tab('pr1', 'review/PR 1'),
+    tab('api', 'coding/api'),
+    tab('web', 'coding/web'),
+  ]
+  const row = { groups: true, row: true, sorted: false }
+  const inline = { ...row, row: false }
+  const nextOf = (
+    list: Session[],
+    id: string,
+    opts: Parameters<typeof tabAfterClose>[2],
+  ) => tabAfterClose(list, id, opts)?.id
+
+  it('shows the tab before it in its group, else the one after', () => {
+    expect(nextOf(all, 'pr1', row)).toBe('pr2')
+    expect(nextOf(all, 'pr2', row)).toBe('pr1')
+    expect(nextOf(all, 'web', inline)).toBe('api')
+  })
+
+  it("takes a group's tabs by name with sorted", () => {
+    const sorted = { ...row, sorted: true }
+    expect(nextOf(all, 'pr2', sorted)).toBe('pr1')
+    expect(nextOf(all, 'pr1', sorted)).toBe('pr2')
+  })
+
+  it('shows the first tab of the group before once its group is empty, else of the one after', () => {
+    const one = all.filter((s) => s.id !== 'pr1')
+    // Row: notes and Shell are No group, before review
+    expect(nextOf(one, 'pr2', row)).toBe('notes')
+    // The first group has none before it: the next one's first tab
+    const coding = [tab('api', 'coding/api'), tab('pr2', 'review/PR 2')]
+    expect(nextOf(coding, 'api', row)).toBe('pr2')
+    // Sorted: the group before's first tab by name
+    const two = [
+      tab('b', 'review/PR 2'),
+      tab('a', 'review/PR 1'),
+      tab('x', 'coding/x'),
+    ]
+    expect(nextOf(two, 'x', { ...row, sorted: true })).toBe('a')
+  })
+
+  it('gathers the tabs in none in the row layout only', () => {
+    expect(nextOf(all, 'shell', row)).toBe('notes')
+    // Inline: a tab in none stands alone, so the group before it
+    expect(nextOf(all, 'shell', inline)).toBe('pr2')
+    expect(nextOf(all, 'notes', inline)).toBe('pr2')
+  })
+
+  it('takes the tab before or after in the order without tab groups', () => {
+    const plain = { groups: false, row: true, sorted: true }
+    expect(nextOf(all, 'shell', plain)).toBe('pr2')
+    expect(nextOf(all, 'notes', plain)).toBe('pr2')
+  })
+
+  it('has nothing to show for the only tab, or a tab not there', () => {
+    expect(nextOf([tab('a', 'review/a')], 'a', row)).toBeUndefined()
+    expect(nextOf(all, 'gone', row)).toBeUndefined()
   })
 })
