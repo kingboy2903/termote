@@ -1181,6 +1181,54 @@ describe('SessionTabs tab groups', () => {
       ])
     })
 
+    describe('Sort tabs by name', () => {
+      // The review tabs together and by name
+      const SORTED = [TABS[0], TABS[3], TABS[1], TABS[2]]
+
+      it("moves the group's tabs on the server, from its menu", async () => {
+        const onMove = vi.fn()
+        const p = { ...props(), onMove }
+        const { rerender } = render(<SessionTabs {...p} />)
+        fireEvent.contextMenu(chip('review'))
+        expect(items()).toContain('Sort tabs by name')
+        fireEvent.click(
+          screen.getByRole('menuitem', { name: 'Sort tabs by name' }),
+        )
+        expect(onMove).toHaveBeenCalledWith('pr2', 1)
+        rerender(<SessionTabs {...p} sessions={SORTED} />)
+        await waitFor(() => expect(onMove).toHaveBeenCalledTimes(1))
+      })
+
+      it('is there from a tab of the group, and off once sorted', () => {
+        const onMove = vi.fn()
+        render(<SessionTabs {...props()} sessions={SORTED} onMove={onMove} />)
+        fireEvent.contextMenu(screen.getByRole('tab', { name: /PR 2/ }))
+        expect(
+          screen.getByRole('menuitem', { name: 'Sort tabs by name' }),
+        ).toBeDisabled()
+        fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+        fireEvent.contextMenu(chip('review'))
+        expect(
+          screen.getByRole('menuitem', { name: 'Sort tabs by name' }),
+        ).toBeDisabled()
+      })
+
+      it("sorts from a tab's menu, not a tab in no group", () => {
+        const onMove = vi.fn()
+        render(<SessionTabs {...props()} onMove={onMove} />)
+        fireEvent.contextMenu(screen.getByRole('tab', { name: /Shell/ }))
+        expect(
+          screen.queryByRole('menuitem', { name: 'Sort tabs by name' }),
+        ).toBeNull()
+        fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+        fireEvent.contextMenu(screen.getByRole('tab', { name: /PR 1/ }))
+        fireEvent.click(
+          screen.getByRole('menuitem', { name: 'Sort tabs by name' }),
+        )
+        expect(onMove).toHaveBeenCalledWith('pr2', 1)
+      })
+    })
+
     it('offers only collapse to a view-only role', () => {
       openMenu({ onAdd: undefined, onUpdate: undefined })
       expect(items()).toEqual(['Collapse'])

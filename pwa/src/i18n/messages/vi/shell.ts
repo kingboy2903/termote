@@ -42,6 +42,7 @@ export default {
   'shell.tabGroups.collapse': 'Thu gọn',
   'shell.tabGroups.expand': 'Mở rộng',
   'shell.tabGroups.ungroup': 'Bỏ nhóm',
+  'shell.tabGroups.sort': 'Sắp xếp tab theo tên',
   'shell.tabGroups.addTo': 'Thêm vào nhóm tab',
   'shell.tabGroups.new': 'Nhóm tab mới…',
   'shell.tabGroups.nameField': 'Nhóm tab mới cho {name}',

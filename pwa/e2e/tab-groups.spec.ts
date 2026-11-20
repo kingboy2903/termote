@@ -412,6 +412,22 @@ for (const { size, viewport, hasTouch, sidebarCollapsed } of WIDE) {
       expect(await namesOf(request)).toEqual(['notes', 'coding/api'])
     })
 
+    test("Sort tabs by name sorts a group's tabs on the server, in either layout", async ({ page, request }) => {
+      await nameFirstTab(request, 'review/PR 10')
+      await addTab(request, 'notes')
+      await addTab(request, 'review/PR 2')
+      await addTab(request, 'review/check')
+      await open(page, request, { sidebarCollapsed })
+      await groupName(page, 'review').click({ button: 'right' })
+      await page.getByRole('menuitem', { name: 'Sort tabs by name' }).click()
+      await expect.poll(() => namesOf(request)).toEqual(['review/check', 'review/PR 2', 'review/PR 10', 'notes'])
+      // Sorted: nothing more to do, from a tab's menu in the row layout too
+      await open(page, request, { sidebarCollapsed, tabGroupsLayout: 'row' })
+      await page.getByRole('tablist', { name: 'Tab groups' }).getByRole('tab', { name: /^review/ }).click()
+      await tab(page, 'PR 2').click({ button: 'right' })
+      await expect(page.getByRole('menuitem', { name: 'Sort tabs by name' })).toBeDisabled()
+    })
+
     test('the setting off shows every tab by its whole name', async ({ page, request }) => {
       await nameFirstTab(request, 'review/one')
       await addTab(request, 'coding/api')

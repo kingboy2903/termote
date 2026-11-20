@@ -28,6 +28,7 @@ import {
   readCollapsed,
   type StripItem,
   solveTabMove,
+  sortGroupOrder,
   sortStripTabs,
   splitTabGroup,
   stepWant,
@@ -304,6 +305,11 @@ export function SessionTabs({
       moveSteps(sessions, groupMoveOrder(sessions, name, order[to + 1]?.[0])),
     )
   }
+  // A group's tabs sorted by name on the server (its menu, or a tab's in
+  // it): its tabs one after the other; none when they already are
+  const sortSteps = (name: string) =>
+    moveSteps(sessions, sortGroupOrder(sessions, name))
+  const sortGroup = (name: string) => void runSteps(sortSteps(name))
   // What a drag reads when it moves and lands: the tabs can change meanwhile
   const fresh = { items, sessions, onMove, onUpdate, plan, moveGroup }
   const latest = useRef(fresh)
@@ -1313,6 +1319,14 @@ export function SessionTabs({
               </MenuItem>
             </>
           )}
+          {onMove && tabGroups && menuGroup !== undefined && (
+            <MenuItem
+              disabled={sortSteps(menuGroup).length === 0}
+              onSelect={() => sortGroup(menuGroup)}
+            >
+              {t('shell.tabGroups.sort')}
+            </MenuItem>
+          )}
           {onAdd && (
             <MenuItem
               // i18n-ignore: a key's name
@@ -1378,6 +1392,14 @@ export function SessionTabs({
                 : 'shell.tabGroups.collapse',
             )}
           </MenuItem>
+          {onMove && (
+            <MenuItem
+              disabled={sortSteps(menuOfGroup.name).length === 0}
+              onSelect={() => sortGroup(menuOfGroup.name)}
+            >
+              {t('shell.tabGroups.sort')}
+            </MenuItem>
+          )}
           {canRename && (
             <>
               <MenuSeparator />
