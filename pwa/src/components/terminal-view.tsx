@@ -15,10 +15,11 @@ import { type StreamControl, useTermSocket } from '../hooks/use-term-socket'
 import { useT } from '../i18n/i18n-context'
 import type { MessageKey } from '../i18n/messages/en'
 import { readToken, type UiStyle } from '../ui-style'
+import { attachAndroidInput } from '../utils/android-input'
 import { backendIsPaneStream } from '../utils/backend'
 import { safeUrl } from '../utils/markdown-safety'
 import { recordSelection } from '../utils/pane-selection'
-import { isApplePlatform } from '../utils/platform'
+import { isAndroid, isApplePlatform } from '../utils/platform'
 import {
   blockContextMenu,
   copyTerminalSelection,
@@ -748,6 +749,8 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(
       termRef.current = term
       fitRef.current = fit
       if (gpuRendererRef.current) webglRef.current = loadWebgl(term)
+      // Android keyboards edit text instead of sending keys; see android-input
+      const detachAndroidInput = isAndroid() ? attachAndroidInput(term) : null
       layout()
       const unprobe = registerTerminalProbe({
         paneId: () => paneIdRef.current,
@@ -814,6 +817,7 @@ export const TerminalView = forwardRef<TerminalHandle, Props>(
       })
       observer.observe(container)
       return () => {
+        detachAndroidInput?.()
         unprobe()
         dropHeld()
         clearTimeout(settle)
